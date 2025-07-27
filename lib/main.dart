@@ -28,7 +28,9 @@ class MyApp extends StatelessWidget {
         if (asyncSnapshot.connectionState == ConnectionState.active) {
           return GetMaterialApp(
             title: 'Firebase Auth with GetX',
-            initialRoute: asyncSnapshot.data != null
+            initialRoute:
+                asyncSnapshot.data != null &&
+                    asyncSnapshot.data!.emailVerified == true
                 ? AppPages.INITIAL
                 : Routes.LOGIN,
             getPages: AppPages.routes,
