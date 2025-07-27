@@ -1,4 +1,5 @@
 import 'package:firebase_auth_get_x/app/controllers/auth_controller.dart';
+import 'package:firebase_auth_get_x/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -32,6 +33,19 @@ class LoginView extends GetView<LoginController> {
                 authC.login(controller.emailC.text, controller.passwordC.text);
               },
               child: const Text('Login'),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("Belum punya akun?"),
+                TextButton(
+                  onPressed: () {
+                    Get.toNamed(Routes.SIGNUP);
+                  },
+                  child: const Text('Daftar'),
+                ),
+              ],
             ),
           ],
         ),

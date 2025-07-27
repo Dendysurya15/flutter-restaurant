@@ -1,7 +1,9 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 class SignupController extends GetxController {
-  //TODO: Implement SignupController
+  final emailC = TextEditingController(text: 'test@gmail.com');
+  final passwordC = TextEditingController(text: "testing");
 
   final count = 0.obs;
   @override

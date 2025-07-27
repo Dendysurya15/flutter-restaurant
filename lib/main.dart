@@ -20,7 +20,6 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final authC = Get.put(AuthController(), permanent: true);
-  final loginC = Get.put(LoginController(), permanent: true);
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -29,13 +28,13 @@ class MyApp extends StatelessWidget {
         if (asyncSnapshot.connectionState == ConnectionState.active) {
           return GetMaterialApp(
             title: 'Firebase Auth with GetX',
-            // initialRoute: asyncSnapshot.data != null
-            //     ? AppPages.INITIAL
-            //     : Routes.LOGIN,
+            initialRoute: asyncSnapshot.data != null
+                ? AppPages.INITIAL
+                : Routes.LOGIN,
             getPages: AppPages.routes,
-            home: asyncSnapshot.data != null
-                ? const HomeView()
-                : const LoginView(),
+            // home: asyncSnapshot.data != null
+            //     ? const HomeView()
+            //     : const LoginView(),
             theme: ThemeData(primarySwatch: Colors.blue),
           );
         }
