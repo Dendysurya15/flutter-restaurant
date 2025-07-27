@@ -7,10 +7,46 @@ class AuthController extends GetxController {
 
   Stream<User?> get streamtAuthStatus => auth.authStateChanges();
 
+  void resetPassword(String email) async {
+    print("Reset Password for $email");
+    if (email != "" && GetUtils.isEmail(email)) {
+      try {
+        await auth.sendPasswordResetEmail(email: email);
+        Get.defaultDialog(
+          title: "Email Terkirim",
+          middleText:
+              "Kami telah mengirimkan email untuk mereset password ke $email.",
+          onConfirm: () {
+            Get.back();
+            Get.back(); // Navigate back to the previous screen
+          },
+          textConfirm: "Ya, Aku mengerti",
+        );
+      } catch (e) {
+        print(e);
+        Get.defaultDialog(
+          title: "Error",
+          middleText:
+              "An error occurred while sending reset email. ${e.toString()}",
+        );
+      }
+    } else {
+      Get.defaultDialog(
+        title: "Email Kosong",
+        middleText: "Silakan masukkan email yang valid.",
+      );
+    }
+  }
+
   void login(String email, String password) async {
     try {
+      print("Login with email: $email, password: $password");
+
       UserCredential user = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
+
+      print("user: ${user.user!}");
+
       if (user.user!.emailVerified) {
         Get.offAllNamed(Routes.HOME);
       } else {
@@ -27,25 +63,29 @@ class AuthController extends GetxController {
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        print('No user found for that email.');
+      print("FirebaseAuthException code: ${e.code}");
+      if (e.code == 'invalid-credential') {
         Get.defaultDialog(
           title: "User Not Found",
-          middleText: "No user found for that email. Please try again.",
+          middleText: "Email tidak ditemukan. Silakan coba lagi.",
         );
       } else if (e.code == 'wrong-password') {
-        print('Wrong password provided for that user.');
         Get.defaultDialog(
           title: "Wrong Password",
-          middleText:
-              "Wrong password provided for that user. Please try again.",
+          middleText: "Password salah. Silakan coba lagi.",
+        );
+      } else {
+        print("FirebaseAuthException: ${e.message}");
+        Get.defaultDialog(
+          title: "Authentication Error",
+          middleText: "${e.message}",
         );
       }
     } catch (e) {
-      print(e);
+      print("Non-Firebase error: ${e.toString()}");
       Get.defaultDialog(
-        title: "Error",
-        middleText: "An error occurred while logging in. ${e.toString()}",
+        title: "Unexpected Error",
+        middleText: "Terjadi kesalahan saat login: ${e.toString()}",
       );
     }
   }

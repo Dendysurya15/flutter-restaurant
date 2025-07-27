@@ -28,6 +28,16 @@ class LoginView extends GetView<LoginController> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  Get.toNamed(Routes.RESET_PASSWORD);
+                },
+                child: const Text('Reset Password'),
+              ),
+            ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 authC.login(controller.emailC.text, controller.passwordC.text);
