@@ -1,5 +1,5 @@
-import 'package:firebase_auth_get_x/app/controllers/auth_controller.dart';
-import 'package:firebase_auth_get_x/app/routes/app_pages.dart';
+import 'package:restaurant/app/controllers/auth_controller.dart';
+import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';

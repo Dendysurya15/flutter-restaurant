@@ -5,21 +5,22 @@ class SignupController extends GetxController {
   final emailC = TextEditingController(text: 'test@gmail.com');
   final passwordC = TextEditingController(text: "testing");
 
-  final count = 0.obs;
-  @override
-  void onInit() {
-    super.onInit();
-  }
+  // Role selection - default to customer
+  final selectedRole = 'customer'.obs;
 
-  @override
-  void onReady() {
-    super.onReady();
+  final count = 0.obs;
+
+  void increment() => count.value++;
+
+  // Method to change role
+  void setRole(String role) {
+    selectedRole.value = role;
   }
 
   @override
   void onClose() {
+    emailC.dispose();
+    passwordC.dispose();
     super.onClose();
   }
-
-  void increment() => count.value++;
 }

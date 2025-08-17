@@ -1,42 +1,41 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth_get_x/app/controllers/auth_controller.dart';
-import 'package:firebase_auth_get_x/app/modules/home/views/home_view.dart';
-import 'package:firebase_auth_get_x/app/modules/login/controllers/login_controller.dart';
-import 'package:firebase_auth_get_x/app/modules/login/views/login_view.dart';
-import 'package:firebase_auth_get_x/app/utils/loading.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:restaurant/app/controllers/auth_controller.dart';
+import 'package:restaurant/app/utils/loading.dart';
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
-
 import 'app/routes/app_pages.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
 
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   final authC = Get.put(AuthController(), permanent: true);
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: authC.streamtAuthStatus,
+    return StreamBuilder<AuthState>(
+      stream: authC.streamAuthStatus,
       builder: (context, asyncSnapshot) {
         if (asyncSnapshot.connectionState == ConnectionState.active) {
+          final session = asyncSnapshot.data?.session;
+          final user = session?.user;
+
           return GetMaterialApp(
-            title: 'Firebase Auth with GetX',
-            initialRoute:
-                asyncSnapshot.data != null &&
-                    asyncSnapshot.data!.emailVerified == true
-                ? AppPages.INITIAL
+            title: 'Restaurant App with Supabase',
+            initialRoute: user != null && user.emailConfirmedAt != null
+                ? Routes.HOME
                 : Routes.LOGIN,
             getPages: AppPages.routes,
-            // home: asyncSnapshot.data != null
-            //     ? const HomeView()
-            //     : const LoginView(),
             theme: ThemeData(primarySwatch: Colors.blue),
           );
         }

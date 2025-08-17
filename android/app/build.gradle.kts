@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.templateFirebaseAuthGetX.firebase_auth_get_x"
+    namespace = "com.nocompany.restaurant"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.templateFirebaseAuthGetX.firebase_auth_get_x"
+        applicationId = "com.nocompany.restaurant"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -43,7 +43,7 @@ flutter {
 
 dependencies {
     // ✅ Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
 
     // ✅ Add Firebase products you need:
     implementation("com.google.firebase:firebase-analytics")
