@@ -1,9 +1,23 @@
 import 'package:get/get.dart';
+import 'package:restaurant/app/widgets/bottom_navigation/owner_bottom_nav.dart';
 
 class HomeController extends GetxController {
-  //TODO: Implement HomeController
+  // Get the OwnerBottomNavController that was created in HomeBinding
+  OwnerBottomNavController get ownerNavController =>
+      Get.find<OwnerBottomNavController>();
 
-  final count = 0.obs;
+  @override
+  void onInit() {
+    super.onInit();
+  }
 
-  void increment() => count.value++;
+  @override
+  void onReady() {
+    super.onReady();
+  }
+
+  @override
+  void onClose() {
+    super.onClose();
+  }
 }

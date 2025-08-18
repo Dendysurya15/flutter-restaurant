@@ -7,6 +7,8 @@ abstract class Routes {
   static const LOGIN = _Paths.LOGIN;
   static const SIGNUP = _Paths.SIGNUP;
   static const RESET_PASSWORD = _Paths.RESET_PASSWORD;
+  static const STORE = _Paths.STORE;
+  static const DASHBOARD_OWNER = _Paths.DASHBOARD_OWNER;
 }
 
 abstract class _Paths {
@@ -15,4 +17,6 @@ abstract class _Paths {
   static const LOGIN = '/login';
   static const SIGNUP = '/signup';
   static const RESET_PASSWORD = '/reset-password';
+  static const STORE = '/store';
+  static const DASHBOARD_OWNER = '/dashboard-owner';
 }
