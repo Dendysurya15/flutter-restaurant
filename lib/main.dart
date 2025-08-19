@@ -3,6 +3,7 @@ import 'package:restaurant/app/controllers/auth_controller.dart';
 import 'package:restaurant/app/utils/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:toastification/toastification.dart';
 import 'app/routes/app_pages.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -30,13 +31,16 @@ class MyApp extends StatelessWidget {
           final session = asyncSnapshot.data?.session;
           final user = session?.user;
 
-          return GetMaterialApp(
-            title: 'Restaurant App with Supabase',
-            initialRoute: user != null && user.emailConfirmedAt != null
-                ? Routes.HOME
-                : Routes.LOGIN,
-            getPages: AppPages.routes,
-            theme: ThemeData(primarySwatch: Colors.blue),
+          return ToastificationWrapper(
+            child: GetMaterialApp(
+              title: 'Restaurant App with Supabase',
+              debugShowCheckedModeBanner: false,
+              initialRoute: user != null && user.emailConfirmedAt != null
+                  ? Routes.HOME
+                  : Routes.LOGIN,
+              getPages: AppPages.routes,
+              theme: ThemeData(primarySwatch: Colors.blue),
+            ),
           );
         }
         return LoadingView();

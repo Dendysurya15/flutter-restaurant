@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/controllers/auth_controller.dart';
 import 'package:restaurant/app/data/models/store_model.dart';
-import 'package:restaurant/app/widgets/notification/custom_toast.dart';
 
 class StoreController extends GetxController {
   final supabase = Supabase.instance.client;
@@ -57,10 +56,6 @@ class StoreController extends GetxController {
       // Get current user from AuthController
       final currentUser = authController.currentUserData.value;
       if (currentUser == null || currentUser.id.isEmpty) {
-        CustomToast.error(
-          title: 'Error',
-          message: 'No authenticated user found',
-        );
         return;
       }
 
@@ -79,7 +74,6 @@ class StoreController extends GetxController {
         currentStore.value = null;
       }
     } catch (e) {
-      CustomToast.error(title: 'Error', message: 'Failed to check store: $e');
     } finally {
       isLoading.value = false;
     }
@@ -112,10 +106,6 @@ class StoreController extends GetxController {
       // Get current user from AuthController
       final currentUser = authController.currentUserData.value;
       if (currentUser == null || currentUser.id.isEmpty) {
-        CustomToast.error(
-          title: 'Error',
-          message: 'No authenticated user found',
-        );
         return;
       }
 
@@ -150,13 +140,7 @@ class StoreController extends GetxController {
 
       currentStore.value = StoreModel.fromJson(response);
       hasStore.value = true;
-
-      CustomToast.success(
-        title: 'Success',
-        message: 'Store created successfully!',
-      );
     } catch (e) {
-      CustomToast.error(title: 'Error', message: 'Failed to create store: $e');
     } finally {
       isLoading.value = false;
     }
@@ -197,13 +181,7 @@ class StoreController extends GetxController {
           .single();
 
       currentStore.value = StoreModel.fromJson(response);
-
-      CustomToast.success(
-        title: 'Success',
-        message: 'Store updated successfully!',
-      );
     } catch (e) {
-      CustomToast.error(title: 'Error', message: 'Failed to update store: $e');
     } finally {
       isLoading.value = false;
     }
@@ -244,13 +222,7 @@ class StoreController extends GetxController {
       currentStore.value = null;
       hasStore.value = false;
       _clearForm();
-
-      CustomToast.success(
-        title: 'Success',
-        message: 'Store deleted successfully!',
-      );
     } catch (e) {
-      CustomToast.error(title: 'Error', message: 'Failed to delete store: $e');
     } finally {
       isLoading.value = false;
     }
@@ -289,13 +261,7 @@ class StoreController extends GetxController {
 
       currentStore.value = StoreModel.fromJson(response);
       isActive.value = newStatus;
-
-      CustomToast.success(title: 'Success', message: 'Store status updated!');
     } catch (e) {
-      CustomToast.error(
-        title: 'Error',
-        message: 'Failed to update store status: $e',
-      );
     } finally {
       isLoading.value = false;
     }
