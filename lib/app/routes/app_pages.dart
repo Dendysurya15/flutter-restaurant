@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:restaurant/app/modules/store/views/store_form.dart';
 
 import '../modules/dashboard_owner/bindings/dashboard_owner_binding.dart';
 import '../modules/dashboard_owner/views/dashboard_owner_view.dart';
@@ -40,6 +41,11 @@ class AppPages {
     GetPage(
       name: _Paths.STORE,
       page: () => const StoreView(),
+      binding: StoreBinding(),
+    ),
+    GetPage(
+      name: _Paths.STORE,
+      page: () => const StoreFormView(),
       binding: StoreBinding(),
     ),
     GetPage(
