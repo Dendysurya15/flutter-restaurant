@@ -1,7 +1,7 @@
 // dashboard_owner_view.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:restaurant/app/widgets/bottom_navigation/owner_bottom_nav.dart';
+// import 'package:restaurant/app/widgets/bottom_navigation/owner_bottom_nav.dart';
 import '../controllers/dashboard_owner_controller.dart';
 
 class DashboardOwnerView extends GetView<DashboardOwnerController> {
@@ -33,7 +33,7 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
           ],
         ),
       ),
-      bottomNavigationBar: OwnerBottomNav(), // Sticky navigation
+      // bottomNavigationBar: OwnerBottomNav(), // Sticky navigation
     );
   }
 }

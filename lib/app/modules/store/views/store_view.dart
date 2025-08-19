@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:restaurant/app/widgets/bottom_navigation/owner_bottom_nav.dart';
 import 'package:restaurant/app/widgets/form/field_text.dart';
 import 'package:restaurant/app/widgets/form/field_number.dart';
 import 'package:restaurant/app/widgets/form/field_dropdown.dart';
@@ -183,7 +182,7 @@ class StoreView extends GetView<StoreController> {
           ),
         );
       }),
-      bottomNavigationBar: OwnerBottomNav(), // Sticky navigation
+      // bottomNavigationBar: OwnerBottomNav(), // Sticky navigation
     );
   }
 

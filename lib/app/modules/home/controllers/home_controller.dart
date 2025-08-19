@@ -1,10 +1,21 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:restaurant/app/widgets/bottom_navigation/owner_bottom_nav.dart';
+import 'package:restaurant/app/modules/dashboard_owner/views/dashboard_owner_view.dart';
+import 'package:restaurant/app/modules/store/views/store_view.dart';
 
 class HomeController extends GetxController {
-  // Get the OwnerBottomNavController that was created in HomeBinding
-  OwnerBottomNavController get ownerNavController =>
-      Get.find<OwnerBottomNavController>();
+  final selectedIndex = 0.obs;
+
+  final Map<String, List<Widget>> pageConfig = {
+    "owner": [
+      DashboardOwnerView(), // replace with your actual view
+      StoreView(),
+    ],
+    "customer": [
+      DashboardOwnerView(),
+      StoreView(), // from your GetX CLI "store" module
+    ],
+  };
 
   @override
   void onInit() {

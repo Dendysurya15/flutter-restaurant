@@ -2,9 +2,6 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-
-    // ✅ Add this:
-    id("com.google.gms.google-services")
 }
 
 android {
@@ -39,14 +36,4 @@ android {
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    // ✅ Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
-
-    // ✅ Add Firebase products you need:
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
-    // Add more Firebase libraries here as needed
 }
