@@ -37,6 +37,7 @@ dependencies:
   get: ^4.7.2
   flutter_dotenv:
   supabase_flutter: ^2.0.0
+  toastification: ^3.0.3
 
 dev_dependencies:
   flutter_test:

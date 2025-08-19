@@ -5,44 +5,53 @@ import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
+  const HomeView({super.key});
+
   @override
   Widget build(BuildContext context) {
     final AuthController authC = Get.find<AuthController>();
 
-    final userRole = authC.userRole.value;
-    final bottomNavItem = userRole.toLowerCase() == "owner"
-        ? [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Dashboard"),
-            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
-          ]
-        : [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
-          ];
+    return Obx(() {
+      final userRole = authC.userRole.value;
+      final bottomNavItem = userRole.toLowerCase() == "owner"
+          ? const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: "Dashboard",
+              ),
+              BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
+            ]
+          : const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+              BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
+            ];
 
-    final pages =
-        controller.pageConfig[userRole] ?? controller.pageConfig["customer"]!;
+      final pages =
+          controller.pageConfig[userRole] ?? controller.pageConfig["customer"]!;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Obx(() => Text('Welcome ${authC.userRole.value.toUpperCase()}')),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => authC.logout(),
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Welcome ${authC.userRole.value.toUpperCase()}'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () => authC.logout(),
+            ),
+          ],
+        ),
+        body: Obx(() => pages[controller.selectedIndex.value]),
+        bottomNavigationBar: Obx(
+          () => BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            items: bottomNavItem,
+            currentIndex: controller.selectedIndex.value,
+            onTap: (index) {
+              controller.selectedIndex.value = index;
+            },
           ),
-        ],
-      ),
-      body: pages[controller.selectedIndex.value],
-      bottomNavigationBar: BottomNavigationBar(
-        items: bottomNavItem,
-        currentIndex: controller.selectedIndex.value,
-        onTap: (index) {
-          controller.selectedIndex.value = index;
-          print("✅ BottomNav tapped -> index: $index");
-        },
-      ),
-    );
+        ),
+      );
+    });
   }
 }
