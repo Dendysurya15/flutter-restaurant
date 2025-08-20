@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:get/get.dart';
 
-class AuthController extends GetxController {
+class AuthService extends GetxController {
   final supabase = Supabase.instance.client;
 
   // Reactive variables

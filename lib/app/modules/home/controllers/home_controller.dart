@@ -18,19 +18,4 @@ class HomeController extends GetxController {
       StoreView(), // from your GetX CLI "store" module
     ],
   };
-
-  @override
-  void onInit() {
-    super.onInit();
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-  }
-
-  @override
-  void onClose() {
-    super.onClose();
-  }
 }

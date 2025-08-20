@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:restaurant/app/routes/app_pages.dart';
 import '../controllers/store_controller.dart';
 
 class StoreView extends GetView<StoreController> {
@@ -18,7 +19,7 @@ class StoreView extends GetView<StoreController> {
             if (controller.stores.isNotEmpty) {
               return IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: () => Get.toNamed('/store/form'),
+                onPressed: () => Get.toNamed(Routes.STORE_FORM),
               );
             }
             return const SizedBox.shrink();

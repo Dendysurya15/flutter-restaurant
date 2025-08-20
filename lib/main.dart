@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:restaurant/app/controllers/auth_controller.dart';
+import 'package:restaurant/app/services/auth_service.dart';
 import 'package:restaurant/app/utils/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,7 +20,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final authC = Get.put(AuthController(), permanent: true);
+  final authC = Get.put(AuthService(), permanent: true);
 
   @override
   Widget build(BuildContext context) {

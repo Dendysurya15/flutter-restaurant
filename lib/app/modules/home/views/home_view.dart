@@ -1,5 +1,4 @@
-import 'package:restaurant/app/controllers/auth_controller.dart';
-import 'package:restaurant/app/routes/app_pages.dart';
+import 'package:restaurant/app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
@@ -9,7 +8,7 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final AuthController authC = Get.find<AuthController>();
+    AuthService authC = Get.find<AuthService>();
 
     return Obx(() {
       final userRole = authC.userRole.value;

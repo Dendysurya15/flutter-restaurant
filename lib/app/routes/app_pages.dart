@@ -44,7 +44,7 @@ class AppPages {
       binding: StoreBinding(),
     ),
     GetPage(
-      name: _Paths.STORE,
+      name: _Paths.STORE_FORM,
       page: () => const StoreFormView(),
       binding: StoreBinding(),
     ),

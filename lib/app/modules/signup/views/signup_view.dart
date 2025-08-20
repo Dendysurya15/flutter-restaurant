@@ -1,4 +1,4 @@
-import 'package:restaurant/app/controllers/auth_controller.dart';
+import 'package:restaurant/app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/signup_controller.dart';
@@ -8,7 +8,7 @@ class SignupView extends GetView<SignupController> {
 
   @override
   Widget build(BuildContext context) {
-    AuthController authC = Get.find<AuthController>();
+    AuthService authC = Get.find<AuthService>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('SignupView'), centerTitle: true),

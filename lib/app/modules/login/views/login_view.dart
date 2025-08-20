@@ -1,4 +1,4 @@
-import 'package:restaurant/app/controllers/auth_controller.dart';
+import 'package:restaurant/app/services/auth_service.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 
@@ -11,7 +11,7 @@ class LoginView extends GetView<LoginController> {
 
   @override
   Widget build(BuildContext context) {
-    AuthController authC = Get.find<AuthController>();
+    AuthService authC = Get.find<AuthService>();
     return Scaffold(
       appBar: AppBar(title: const Text('Login Screen'), centerTitle: true),
       body: Padding(
