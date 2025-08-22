@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:restaurant/app/modules/store/views/store_form.dart';
+import 'package:restaurant/app/modules/store/views/store_form_view.dart';
 
 import '../modules/dashboard_owner/bindings/dashboard_owner_binding.dart';
 import '../modules/dashboard_owner/views/dashboard_owner_view.dart';
@@ -13,6 +13,10 @@ import '../modules/signup/bindings/signup_binding.dart';
 import '../modules/signup/views/signup_view.dart';
 import '../modules/store/bindings/store_binding.dart';
 import '../modules/store/views/store_view.dart';
+// Add these new imports
+import '../modules/store/views/store_detail_view.dart';
+import '../modules/store/views/category_form_view.dart';
+import '../modules/store/views/menu_item_form_view.dart';
 
 part 'app_routes.dart';
 
@@ -47,6 +51,22 @@ class AppPages {
       name: _Paths.STORE_FORM,
       page: () => const StoreFormView(),
       binding: StoreBinding(),
+    ),
+    // Add these new routes
+    GetPage(
+      name: _Paths.STORE_DETAIL,
+      page: () => const StoreDetailView(),
+      binding: StoreBinding(), // Use same binding since we updated it
+    ),
+    GetPage(
+      name: _Paths.CATEGORY_FORM,
+      page: () => const CategoryFormView(),
+      binding: StoreBinding(), // Use same binding
+    ),
+    GetPage(
+      name: _Paths.MENU_ITEM_FORM,
+      page: () => const MenuItemFormView(),
+      binding: StoreBinding(), // Use same binding
     ),
     GetPage(
       name: _Paths.DASHBOARD_OWNER,

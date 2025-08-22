@@ -100,164 +100,172 @@ class StoreView extends GetView<StoreController> {
   }
 
   Widget _buildStoreCard(dynamic store) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color: store.isActive ? Colors.orange : Colors.grey,
-            width: 1.5,
+    return GestureDetector(
+      onTap: () {
+        // Navigate to store detail view
+        Get.toNamed(Routes.STORE_DETAIL, arguments: store);
+      },
+      child: SizedBox(
+        width: double.infinity,
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: store.isActive ? Colors.orange : Colors.grey,
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Store info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          store.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: store.isActive ? Colors.orange : Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          store.category,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (store.description?.isNotEmpty == true) ...[
-                          const SizedBox(height: 2),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Store info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            store.description!,
+                            store.name,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (store.address?.isNotEmpty == true) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            store.address!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (store.phone?.isNotEmpty == true) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            store.phone!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: store.isActive
+                                  ? Colors.orange
+                                  : Colors.grey,
                             ),
                           ),
-                        ],
-                        const SizedBox(height: 8),
-                        // Service badges
-                        Row(
-                          children: [
-                            if (store.deliveryAvailable)
-                              _buildServiceBadge(
-                                'Delivery',
-                                Icons.delivery_dining,
+                          const SizedBox(height: 4),
+                          Text(
+                            store.category,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (store.description?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              store.description!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
                               ),
-                            if (store.deliveryAvailable &&
-                                store.dineInAvailable)
-                              const SizedBox(width: 8),
-                            if (store.dineInAvailable)
-                              _buildServiceBadge('Dine-In', Icons.restaurant),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
-                        ),
-                      ],
+                          if (store.address?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              store.address!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          if (store.phone?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              store.phone!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          // Service badges
+                          Row(
+                            children: [
+                              if (store.deliveryAvailable)
+                                _buildServiceBadge(
+                                  'Delivery',
+                                  Icons.delivery_dining,
+                                ),
+                              if (store.deliveryAvailable &&
+                                  store.dineInAvailable)
+                                const SizedBox(width: 8),
+                              if (store.dineInAvailable)
+                                _buildServiceBadge('Dine-In', Icons.restaurant),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Store image or placeholder
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: store.imageUrl?.isNotEmpty == true
+                          ? Image.network(
+                              store.imageUrl!,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildImagePlaceholder();
+                              },
+                            )
+                          : _buildImagePlaceholder(),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Status badge
+              Positioned(
+                top: 8,
+                right: 50,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: store.isActive ? Colors.orange : Colors.grey,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    store.isActive ? "Active" : "Inactive",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-
-                  // Store image or placeholder
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: store.imageUrl?.isNotEmpty == true
-                        ? Image.network(
-                            store.imageUrl!,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildImagePlaceholder();
-                            },
-                          )
-                        : _buildImagePlaceholder(),
-                  ),
-                ],
+                ),
               ),
-            ),
 
-            // Status badge
-            Positioned(
-              top: 8,
-              right: 50,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: store.isActive ? Colors.orange : Colors.grey,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  store.isActive ? "Active" : "Inactive",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+              // Three-dot menu button
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => _showStoreMenu(store),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.more_vert,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            // Three-dot menu button
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => _showStoreMenu(store),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.more_vert,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

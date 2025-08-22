@@ -9,6 +9,10 @@ abstract class Routes {
   static const RESET_PASSWORD = _Paths.RESET_PASSWORD;
   static const STORE = _Paths.STORE;
   static const STORE_FORM = _Paths.STORE_FORM;
+  // Add these new routes
+  static const STORE_DETAIL = _Paths.STORE_DETAIL;
+  static const CATEGORY_FORM = _Paths.CATEGORY_FORM;
+  static const MENU_ITEM_FORM = _Paths.MENU_ITEM_FORM;
   static const DASHBOARD_OWNER = _Paths.DASHBOARD_OWNER;
 }
 
@@ -19,6 +23,10 @@ abstract class _Paths {
   static const SIGNUP = '/signup';
   static const RESET_PASSWORD = '/reset-password';
   static const STORE = '/store';
-  static const STORE_FORM = '/store/form';
+  static const STORE_FORM = '/store-form';
+  // Add these new paths
+  static const STORE_DETAIL = '/store-detail';
+  static const CATEGORY_FORM = '/category-form';
+  static const MENU_ITEM_FORM = '/menu-item-form';
   static const DASHBOARD_OWNER = '/dashboard-owner';
 }
