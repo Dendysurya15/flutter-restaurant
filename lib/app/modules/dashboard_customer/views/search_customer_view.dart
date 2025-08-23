@@ -37,25 +37,79 @@ class SearchCustomerView extends GetView<SearchStoreController> {
           return _buildSearchResults();
         }
 
-        // Show categories by default
-        return _buildCategoriesGrid();
+        // Show search history and categories by default
+        return _buildDefaultView();
       }),
     );
   }
 
-  Widget _buildCategoriesGrid() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16),
-          child: Text(
-            'Browse Categories',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildDefaultView() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Recent Search History
+          Obx(() {
+            if (controller.searchHistory.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Recent Searches',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: controller.clearSearchHistory,
+                        child: Text(
+                          'Clear All',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 45,
+                  padding: const EdgeInsets.only(left: 16),
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: controller.searchHistory.length,
+                    itemBuilder: (context, index) {
+                      final searchTerm = controller.searchHistory[index];
+                      return _buildHistoryChip(searchTerm);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            );
+          }),
+
+          // Categories Grid
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Browse Categories',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        Expanded(
-          child: GridView.builder(
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -69,8 +123,42 @@ class SearchCustomerView extends GetView<SearchStoreController> {
               return _buildCategoryCard(category);
             },
           ),
+          const SizedBox(height: 32), // Bottom padding
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryChip(String searchTerm) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => controller.searchFromHistory(searchTerm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.history, size: 16, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Text(
+                searchTerm,
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => controller.removeFromHistory(searchTerm),
+                child: Icon(Icons.close, size: 14, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -288,7 +376,6 @@ class SearchCustomerView extends GetView<SearchStoreController> {
         return Icons.local_dining;
       case 'mexican':
         return Icons.food_bank;
-
       case 'chinese':
         return Icons.ramen_dining;
       case 'japanese':

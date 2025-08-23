@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/data/models/store_model.dart';
 
 class SearchStoreController extends GetxController {
   final supabase = Supabase.instance.client;
+  late SharedPreferences _prefs;
 
   // Search and filtering
   final searchController = TextEditingController();
@@ -16,10 +18,17 @@ class SearchStoreController extends GetxController {
   final filteredStores = <StoreModel>[].obs;
   final isLoading = false.obs;
 
+  // Search history
+  final searchHistory = <String>[].obs;
+  static const String _searchHistoryKey = 'search_history';
+  static const int _maxHistoryItems = 10;
+
   @override
   void onInit() {
     super.onInit();
+    _prefs = Get.find<SharedPreferences>();
     loadStores();
+    loadSearchHistory();
 
     // Listen to search changes
     searchController.addListener(() {
@@ -63,8 +72,64 @@ class SearchStoreController extends GetxController {
     }
   }
 
+  // Load search history from SharedPreferences
+  void loadSearchHistory() {
+    final history = _prefs.getStringList(_searchHistoryKey) ?? [];
+    searchHistory.value = history;
+  }
+
+  // Save search history to SharedPreferences
+  Future<void> saveSearchHistory() async {
+    await _prefs.setStringList(_searchHistoryKey, searchHistory);
+  }
+
+  // Add search term to history
+  void addToSearchHistory(String searchTerm) {
+    if (searchTerm.trim().isEmpty) return;
+
+    final trimmedTerm = searchTerm.trim();
+
+    // Remove if already exists
+    searchHistory.remove(trimmedTerm);
+
+    // Add to beginning
+    searchHistory.insert(0, trimmedTerm);
+
+    // Keep only latest 10 items
+    if (searchHistory.length > _maxHistoryItems) {
+      searchHistory.removeRange(_maxHistoryItems, searchHistory.length);
+    }
+
+    // Save to storage
+    saveSearchHistory();
+  }
+
+  // Clear search history
+  void clearSearchHistory() {
+    searchHistory.clear();
+    _prefs.remove(_searchHistoryKey);
+  }
+
+  // Remove specific history item
+  void removeFromHistory(String term) {
+    searchHistory.remove(term);
+    saveSearchHistory();
+  }
+
+  // Use history item for search
+  void searchFromHistory(String term) {
+    searchController.text = term;
+    searchText.value = term;
+    applyFilters();
+  }
+
   void searchStores(String query) {
     searchText.value = query;
+
+    // Add to history when user actually searches (not just types)
+    if (query.trim().isNotEmpty) {
+      addToSearchHistory(query);
+    }
   }
 
   void selectCategory(String category) {
@@ -75,6 +140,9 @@ class SearchStoreController extends GetxController {
       searchController.text = category;
       searchText.value = category;
     }
+
+    // Add category to search history
+    addToSearchHistory(category);
   }
 
   void clearCategory() {

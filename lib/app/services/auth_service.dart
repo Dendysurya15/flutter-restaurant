@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:get/get.dart';
@@ -129,6 +130,8 @@ class AuthService extends GetxController {
       // Reset reactive variables
       userRole.value = 'customer';
       currentUserData.value = null;
+      final prefs = Get.find<SharedPreferences>();
+      await prefs.remove('search_history');
 
       Get.offAllNamed(Routes.LOGIN);
     } catch (e) {
