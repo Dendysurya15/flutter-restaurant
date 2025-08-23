@@ -1,6 +1,9 @@
 import 'package:get/get.dart';
-import 'package:restaurant/app/modules/store/views/store_form_view.dart';
 
+import '../modules/admin_manage_store/bindings/admin_manage_store_binding.dart';
+import '../modules/admin_manage_store/views/admin_manage_store_view.dart';
+import '../modules/dashboard_admin/bindings/dashboard_admin_binding.dart';
+import '../modules/dashboard_admin/views/dashboard_admin_view.dart';
 import '../modules/dashboard_owner/bindings/dashboard_owner_binding.dart';
 import '../modules/dashboard_owner/views/dashboard_owner_view.dart';
 import '../modules/home/bindings/home_binding.dart';
@@ -12,11 +15,13 @@ import '../modules/reset_password/views/reset_password_view.dart';
 import '../modules/signup/bindings/signup_binding.dart';
 import '../modules/signup/views/signup_view.dart';
 import '../modules/store/bindings/store_binding.dart';
-import '../modules/store/views/store_view.dart';
-// Add these new imports
-import '../modules/store/views/store_detail_view.dart';
 import '../modules/store/views/category_form_view.dart';
 import '../modules/store/views/menu_item_form_view.dart';
+import '../modules/store/views/store_detail_view.dart';
+import '../modules/store/views/store_form_view.dart';
+import '../modules/store/views/store_view.dart';
+
+// Add these new imports
 
 part 'app_routes.dart';
 
@@ -72,6 +77,16 @@ class AppPages {
       name: _Paths.DASHBOARD_OWNER,
       page: () => const DashboardOwnerView(),
       binding: DashboardOwnerBinding(),
+    ),
+    GetPage(
+      name: _Paths.ADMIN_MANAGE_STORE,
+      page: () => const AdminManageStoreView(),
+      binding: AdminManageStoreBinding(),
+    ),
+    GetPage(
+      name: _Paths.DASHBOARD_ADMIN,
+      page: () => DashboardAdminView(),
+      binding: DashboardAdminBinding(),
     ),
   ];
 }

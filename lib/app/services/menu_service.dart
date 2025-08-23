@@ -85,22 +85,13 @@ class MenuService extends GetxService {
     }
   }
 
-  Future<MenuItemModel> updateMenuItem(
+  Future<void> updateMenuItem(
     String itemId,
-    Map<String, dynamic> data,
+    Map<String, dynamic> itemData,
   ) async {
-    try {
-      final response = await _supabase
-          .from('menu_items')
-          .update(data)
-          .eq('id', itemId)
-          .select()
-          .single();
+    itemData['updated_at'] = DateTime.now().toIso8601String();
 
-      return MenuItemModel.fromJson(response);
-    } catch (e) {
-      throw Exception('Failed to update menu item: $e');
-    }
+    await _supabase.from('menu_items').update(itemData).eq('id', itemId);
   }
 
   Future<void> deleteCategory(String categoryId) async {

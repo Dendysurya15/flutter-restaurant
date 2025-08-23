@@ -14,6 +14,8 @@ abstract class Routes {
   static const CATEGORY_FORM = _Paths.CATEGORY_FORM;
   static const MENU_ITEM_FORM = _Paths.MENU_ITEM_FORM;
   static const DASHBOARD_OWNER = _Paths.DASHBOARD_OWNER;
+  static const ADMIN_MANAGE_STORE = _Paths.ADMIN_MANAGE_STORE;
+  static const DASHBOARD_ADMIN = _Paths.DASHBOARD_ADMIN;
 }
 
 abstract class _Paths {
@@ -29,4 +31,6 @@ abstract class _Paths {
   static const CATEGORY_FORM = '/category-form';
   static const MENU_ITEM_FORM = '/menu-item-form';
   static const DASHBOARD_OWNER = '/dashboard-owner';
+  static const ADMIN_MANAGE_STORE = '/admin-manage-store';
+  static const DASHBOARD_ADMIN = '/dashboard-admin';
 }

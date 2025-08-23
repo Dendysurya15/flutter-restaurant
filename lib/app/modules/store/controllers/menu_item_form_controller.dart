@@ -20,7 +20,10 @@ class MenuItemFormController extends GetxController {
   final isVegetarian = false.obs;
   final isSpicy = false.obs;
   final isLoading = false.obs;
+  // Add this property at the top of your controller
+  final isEditing = false.obs;
 
+  @override
   @override
   void onInit() {
     super.onInit();
@@ -31,17 +34,39 @@ class MenuItemFormController extends GetxController {
       // If arguments is a Map with 'store' and 'categories' keys
       store.value = args['store'];
       categories.value = List<MenuCategoryModel>.from(args['categories'] ?? []);
+
+      // Check if we're editing an existing item
+      final editingItem = args['editingItem'];
+      if (editingItem != null) {
+        _populateFormForEditing(editingItem);
+      }
     } else {
       // If arguments is just the StoreModel directly
       store.value = args;
       categories.value = [];
     }
 
-    if (categories.isNotEmpty) {
+    if (categories.isNotEmpty && selectedCategoryId.value.isEmpty) {
       selectedCategoryId.value = categories.first.id;
     }
 
-    sortOrderController.text = '0';
+    if (sortOrderController.text.isEmpty) {
+      sortOrderController.text = '0';
+    }
+  }
+
+  // Add this new method
+  void _populateFormForEditing(dynamic item) {
+    isEditing.value = true; // Add this line
+    nameController.text = item.name ?? '';
+    descriptionController.text = item.description ?? '';
+    priceController.text = item.price?.toInt().toString() ?? '';
+    preparationTimeController.text = item.preparationTime?.toString() ?? '';
+    selectedCategoryId.value = item.categoryId ?? '';
+    sortOrderController.text = item.sortOrder?.toString() ?? '0';
+    isAvailable.value = item.isAvailable ?? true;
+    isVegetarian.value = item.isVegetarian ?? false;
+    isSpicy.value = item.isSpicy ?? false;
   }
 
   @override
@@ -66,7 +91,7 @@ class MenuItemFormController extends GetxController {
       isLoading.value = true;
 
       final menuItemData = {
-        'store_id': store.value?.id, // Access id from StoreModel
+        'store_id': store.value?.id,
         'category_id': selectedCategoryId.value,
         'name': nameController.text.trim(),
         'description': descriptionController.text.trim().isEmpty
@@ -82,10 +107,18 @@ class MenuItemFormController extends GetxController {
         'sort_order': int.tryParse(sortOrderController.text) ?? 0,
       };
 
-      await _menuService.createMenuItem(menuItemData);
-
-      Get.back(result: true);
-      Get.snackbar('Success', 'Menu item added successfully');
+      if (isEditing.value) {
+        // Update existing item
+        final editingItem = (Get.arguments as Map)['editingItem'];
+        await _menuService.updateMenuItem(editingItem.id, menuItemData);
+        Get.back(result: true);
+        Get.snackbar('Success', 'Menu item updated successfully');
+      } else {
+        // Create new item
+        await _menuService.createMenuItem(menuItemData);
+        Get.back(result: true);
+        Get.snackbar('Success', 'Menu item added successfully');
+      }
     } catch (e) {
       Get.snackbar('Error', 'Failed to save menu item: ${e.toString()}');
       print('Error saving menu item: $e');

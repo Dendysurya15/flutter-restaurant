@@ -80,6 +80,22 @@ class StoreDetailController extends GetxController {
     }
   }
 
+  // Add this method to your StoreDetailController class
+  Future<void> editMenuItem(MenuItemModel item) async {
+    final result = await Get.toNamed(
+      Routes.MENU_ITEM_FORM,
+      arguments: {
+        'store': store.value,
+        'categories': categories,
+        'editingItem': item, // Pass the item to edit
+      },
+    );
+
+    if (result == true) {
+      await loadMenuItems();
+    }
+  }
+
   void onCategoryFilterChanged(String categoryId) {
     selectedCategoryId.value = categoryId;
     applyFilter();

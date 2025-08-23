@@ -12,18 +12,9 @@ class HomeView extends GetView<HomeController> {
 
     return Obx(() {
       final userRole = authC.userRole.value;
-      final bottomNavItem = userRole.toLowerCase() == "owner"
-          ? const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: "Dashboard",
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
-            ]
-          : const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-              BottomNavigationBarItem(icon: Icon(Icons.store), label: "Store"),
-            ];
+
+      // Define bottom nav items based on role
+      final bottomNavItem = _getBottomNavItems(userRole);
 
       final pages =
           controller.pageConfig[userRole] ?? controller.pageConfig["customer"]!;
@@ -45,6 +36,8 @@ class HomeView extends GetView<HomeController> {
             type: BottomNavigationBarType.fixed,
             items: bottomNavItem,
             currentIndex: controller.selectedIndex.value,
+            selectedItemColor: _getSelectedColor(userRole),
+            unselectedItemColor: Colors.grey,
             onTap: (index) {
               controller.selectedIndex.value = index;
             },
@@ -52,5 +45,45 @@ class HomeView extends GetView<HomeController> {
         ),
       );
     });
+  }
+
+  List<BottomNavigationBarItem> _getBottomNavItems(String userRole) {
+    switch (userRole.toLowerCase()) {
+      case "owner":
+        return const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: "Dashboard",
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: "My Stores"),
+        ];
+      case "admin":
+        return const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.admin_panel_settings),
+            label: "Dashboard",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.manage_accounts),
+            label: "Manage Stores",
+          ),
+        ];
+      default: // customer
+        return const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: "Stores"),
+        ];
+    }
+  }
+
+  Color _getSelectedColor(String userRole) {
+    switch (userRole.toLowerCase()) {
+      case "owner":
+        return Colors.orange;
+      case "admin":
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
   }
 }

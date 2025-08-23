@@ -80,9 +80,9 @@ class MenuItemFormView extends GetView<MenuItemFormController> {
                         controller: controller.priceController,
                         decoration: InputDecoration(
                           labelText: 'Price *',
-                          hintText: '0.00',
+                          hintText: '0',
                           border: OutlineInputBorder(),
-                          prefixText: '\$ ',
+                          prefixText: 'Rp ',
                         ),
                         keyboardType: TextInputType.numberWithOptions(
                           decimal: true,

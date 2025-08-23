@@ -333,7 +333,7 @@ class StoreView extends GetView<StoreController> {
               title: const Text('Edit Store'),
               onTap: () {
                 Get.back();
-                Get.toNamed('/store/form', arguments: store);
+                Get.toNamed(Routes.STORE_FORM, arguments: store);
               },
             ),
             ListTile(

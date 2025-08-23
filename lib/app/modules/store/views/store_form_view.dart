@@ -144,9 +144,9 @@ class StoreFormView extends GetView<StoreController> {
                     child: FieldNumber(
                       controller: controller.deliveryFeeController,
                       label: 'Delivery Fee',
-                      hint: '0.00',
+                      hint: '0',
                       icon: Icons.money,
-                      prefixText: '\$ ',
+                      prefixText: 'Rp ',
                       min: 0,
                     ),
                   ),
@@ -155,9 +155,9 @@ class StoreFormView extends GetView<StoreController> {
                     child: FieldNumber(
                       controller: controller.minimumOrderController,
                       label: 'Minimum Order',
-                      hint: '0.00',
+                      hint: '0',
                       icon: Icons.shopping_cart,
-                      prefixText: '\$ ',
+                      prefixText: 'Rp ',
                       min: 0,
                     ),
                   ),

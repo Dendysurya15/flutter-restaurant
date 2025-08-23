@@ -232,28 +232,26 @@ class AuthService extends GetxController {
   // Update reactive user role from user metadata or database
   Future<void> _updateUserRole(User user) async {
     try {
-      // First try to get role from user metadata
-      String role = user.userMetadata?['role'] ?? 'customer';
+      // Always get role from database first
+      final userData = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      // If no role in metadata, get from database
-      if (role == 'customer') {
-        final userData = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .maybeSingle();
-
-        if (userData != null && userData['role'] != null) {
-          role = userData['role'];
-        }
+      String role = 'customer'; // Default fallback
+      if (userData != null && userData['role'] != null) {
+        role = userData['role'];
+      } else {
+        // Fallback to metadata only if database doesn't have the role
+        role = user.userMetadata?['role'] ?? 'customer';
       }
 
-      // Update reactive role
       userRole.value = role;
       print('User role updated to: $role');
     } catch (e) {
       print('Error updating user role: $e');
-      userRole.value = 'customer'; // Default fallback
+      userRole.value = 'customer';
     }
   }
 

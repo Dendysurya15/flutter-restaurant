@@ -196,7 +196,7 @@ class StoreDetailView extends GetView<StoreDetailController> {
                     Row(
                       children: [
                         Text(
-                          '\$${item.price.toStringAsFixed(2)}',
+                          'Rp ${item.price.toInt()}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -388,7 +388,7 @@ class StoreDetailView extends GetView<StoreDetailController> {
                           ),
                         ),
                         Text(
-                          '\$${item.price.toStringAsFixed(2)}',
+                          'Rp ${item.price.toInt()}',
                           style: TextStyle(
                             color: Colors.green[700],
                             fontWeight: FontWeight.w600,
@@ -409,7 +409,7 @@ class StoreDetailView extends GetView<StoreDetailController> {
               title: Text('Edit Menu Item'),
               onTap: () {
                 Get.back();
-                Get.snackbar('Info', 'Edit functionality coming soon');
+                controller.editMenuItem(item);
               },
             ),
 
