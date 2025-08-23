@@ -16,6 +16,9 @@ abstract class Routes {
   static const DASHBOARD_OWNER = _Paths.DASHBOARD_OWNER;
   static const ADMIN_MANAGE_STORE = _Paths.ADMIN_MANAGE_STORE;
   static const DASHBOARD_ADMIN = _Paths.DASHBOARD_ADMIN;
+  static const DASHBOARD_CUSTOMER = _Paths.DASHBOARD_CUSTOMER;
+  static const SEARCH_PAGE_CUSTOMER = _Paths.SEARCH_PAGE_CUSTOMER;
+  static const PROFILE = _Paths.PROFILE;
 }
 
 abstract class _Paths {
@@ -33,4 +36,7 @@ abstract class _Paths {
   static const DASHBOARD_OWNER = '/dashboard-owner';
   static const ADMIN_MANAGE_STORE = '/admin-manage-store';
   static const DASHBOARD_ADMIN = '/dashboard-admin';
+  static const DASHBOARD_CUSTOMER = '/dashboard-customer';
+  static const SEARCH_PAGE_CUSTOMER = '/search-customer';
+  static const PROFILE = '/profile';
 }

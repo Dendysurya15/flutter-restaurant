@@ -22,10 +22,13 @@ class StoreController extends GetxController {
 
   // Observable properties
   var isLoading = false.obs;
-  var stores = <StoreModel>[].obs; // List of stores
+  var stores = <StoreModel>[].obs;
   var deliveryAvailable = true.obs;
   var dineInAvailable = true.obs;
   var isStoreActive = true.obs;
+
+  // NEW: Opening hours
+  final openingHours = <String, String>{}.obs;
 
   // Computed properties
   bool get hasStore => stores.isNotEmpty;
@@ -34,7 +37,29 @@ class StoreController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchStores(); // Load stores when controller initializes
+    fetchStores();
+    _initializeDefaultHours();
+  }
+
+  // Initialize default opening hours
+  void _initializeDefaultHours() {
+    final days = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    for (final day in days) {
+      openingHours[day] = '09:00-22:00';
+    }
+  }
+
+  // Set hours for a specific day
+  void setDayHours(String day, String hours) {
+    openingHours[day] = hours;
   }
 
   // Fetch all stores for the current user
@@ -44,7 +69,7 @@ class StoreController extends GetxController {
       final response = await StoreService.getUserStores();
       stores.value = response;
     } catch (e) {
-      print("e ${e}");
+      print("Error fetching stores: $e");
       if (Get.context != null) {
         ToastHelper.showToast(
           context: Get.context!,
@@ -71,6 +96,9 @@ class StoreController extends GetxController {
     deliveryAvailable.value = true;
     dineInAvailable.value = true;
     isStoreActive.value = true;
+
+    // Reset opening hours to default
+    _initializeDefaultHours();
   }
 
   // Initialize form for editing existing store
@@ -80,23 +108,42 @@ class StoreController extends GetxController {
     descriptionController.text = store.description ?? '';
     addressController.text = store.address ?? '';
     phoneController.text = store.phone ?? '';
-    deliveryFeeController.text = store.deliveryFee?.toString() ?? '';
-    minimumOrderController.text = store.minimumOrder?.toString() ?? '';
+    deliveryFeeController.text = store.deliveryFee.toInt().toString();
+    minimumOrderController.text = store.minimumOrder.toInt().toString();
 
     deliveryAvailable.value = store.deliveryAvailable;
     dineInAvailable.value = store.dineInAvailable;
     isStoreActive.value = store.isActive;
+
+    // Initialize opening hours from store data
+    if (store.openingHours != null) {
+      final storeHours = Map<String, dynamic>.from(store.openingHours!);
+      final days = [
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ];
+
+      for (final day in days) {
+        openingHours[day] = storeHours[day]?.toString() ?? 'closed';
+      }
+    } else {
+      _initializeDefaultHours();
+    }
   }
 
   // Create new store
   Future<void> createStore() async {
-    print("masuk ");
     if (!formKey.currentState!.validate()) return;
 
     try {
       isLoading.value = true;
 
-      // Create store data
+      // Create store data with opening hours
       final storeData = {
         'name': nameController.text.trim(),
         'category': categoryController.text,
@@ -112,18 +159,21 @@ class StoreController extends GetxController {
         'delivery_available': deliveryAvailable.value,
         'dine_in_available': dineInAvailable.value,
         'delivery_fee': deliveryFeeController.text.trim().isEmpty
-            ? null
-            : double.tryParse(deliveryFeeController.text),
+            ? 0
+            : double.tryParse(deliveryFeeController.text) ?? 0,
         'minimum_order': minimumOrderController.text.trim().isEmpty
-            ? null
-            : double.tryParse(minimumOrderController.text),
+            ? 0
+            : double.tryParse(minimumOrderController.text) ?? 0,
         'is_active': isStoreActive.value,
+        'opening_hours': openingHours.isEmpty
+            ? null
+            : Map<String, dynamic>.from(openingHours),
       };
 
       final newStore = await StoreService.createStore(storeData);
       stores.add(newStore);
 
-      Get.back(); // Go back to store list
+      Get.back();
 
       if (Get.context != null) {
         ToastHelper.showToast(
@@ -154,7 +204,7 @@ class StoreController extends GetxController {
     try {
       isLoading.value = true;
 
-      // Update store data
+      // Update store data with opening hours
       final storeData = {
         'name': nameController.text.trim(),
         'category': categoryController.text,
@@ -170,12 +220,15 @@ class StoreController extends GetxController {
         'delivery_available': deliveryAvailable.value,
         'dine_in_available': dineInAvailable.value,
         'delivery_fee': deliveryFeeController.text.trim().isEmpty
-            ? null
-            : double.tryParse(deliveryFeeController.text),
+            ? 0
+            : double.tryParse(deliveryFeeController.text) ?? 0,
         'minimum_order': minimumOrderController.text.trim().isEmpty
-            ? null
-            : double.tryParse(minimumOrderController.text),
+            ? 0
+            : double.tryParse(minimumOrderController.text) ?? 0,
         'is_active': isStoreActive.value,
+        'opening_hours': openingHours.isEmpty
+            ? null
+            : Map<String, dynamic>.from(openingHours),
       };
 
       final updatedStore = await StoreService.updateStore(storeId, storeData);
@@ -186,7 +239,7 @@ class StoreController extends GetxController {
         stores[index] = updatedStore;
       }
 
-      Get.back(); // Go back to store list
+      Get.back();
 
       if (Get.context != null) {
         ToastHelper.showToast(
@@ -268,7 +321,6 @@ class StoreController extends GetxController {
     try {
       await StoreService.deleteStore(storeId);
 
-      // Remove from local list
       stores.removeWhere((store) => store.id == storeId);
 
       if (Get.context != null) {
@@ -289,5 +341,17 @@ class StoreController extends GetxController {
         );
       }
     }
+  }
+
+  @override
+  void onClose() {
+    nameController.dispose();
+    categoryController.dispose();
+    descriptionController.dispose();
+    addressController.dispose();
+    phoneController.dispose();
+    deliveryFeeController.dispose();
+    minimumOrderController.dispose();
+    super.onClose();
   }
 }

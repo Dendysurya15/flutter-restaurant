@@ -108,6 +108,16 @@ class StoreFormView extends GetView<StoreController> {
 
               const SizedBox(height: 24),
 
+              // Opening Hours
+              const SectionTitle(
+                title: 'Opening Hours',
+                icon: Icons.access_time,
+              ),
+              const SizedBox(height: 16),
+              _buildOpeningHoursSection(),
+
+              const SizedBox(height: 24),
+
               // Service Settings
               const SectionTitle(
                 title: 'Service Settings',
@@ -201,7 +211,6 @@ class StoreFormView extends GetView<StoreController> {
                   const SizedBox(width: 16),
                   Expanded(
                     flex: 2,
-                    // Only the button needs to be reactive for loading state
                     child: Obx(
                       () => PrimaryButton(
                         text: isEditing ? 'Update Store' : 'Create Store',
@@ -228,9 +237,170 @@ class StoreFormView extends GetView<StoreController> {
       ),
     );
   }
+
+  Widget _buildOpeningHoursSection() {
+    final days = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    final dayNames = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Set your store opening hours',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            ...days.asMap().entries.map((entry) {
+              final index = entry.key;
+              final day = entry.value;
+              final dayName = dayNames[index];
+
+              return Obx(() => _buildDayRow(day, dayName));
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayRow(String day, String dayName) {
+    final currentHours = controller.openingHours[day] ?? 'closed';
+    final isClosed = currentHours == 'closed';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              dayName,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Switch(
+            value: !isClosed,
+            onChanged: (isOpen) {
+              if (isOpen) {
+                controller.setDayHours(day, '09:00-22:00');
+              } else {
+                controller.setDayHours(day, 'closed');
+              }
+            },
+          ),
+          const SizedBox(width: 16),
+          if (!isClosed) ...[
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildTimeField(
+                      day,
+                      'open',
+                      currentHours.split('-')[0],
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('-'),
+                  ),
+                  Expanded(
+                    child: _buildTimeField(
+                      day,
+                      'close',
+                      currentHours.split('-')[1],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            const Expanded(
+              child: Text(
+                'Closed',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeField(String day, String type, String currentTime) {
+    return InkWell(
+      onTap: () => _selectTime(day, type, currentTime),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          currentTime,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectTime(String day, String type, String currentTime) async {
+    final timeParts = currentTime.split(':');
+    final currentTimeOfDay = TimeOfDay(
+      hour: int.parse(timeParts[0]),
+      minute: int.parse(timeParts[1]),
+    );
+
+    final selectedTime = await showTimePicker(
+      context: Get.context!,
+      initialTime: currentTimeOfDay,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+
+    if (selectedTime != null) {
+      final timeString =
+          '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+
+      final currentHours = controller.openingHours[day] ?? '09:00-22:00';
+      final timeParts = currentHours.split('-');
+
+      final newTime = type == 'open'
+          ? '$timeString-${timeParts.length > 1 ? timeParts[1] : '22:00'}'
+          : '${timeParts[0]}-$timeString';
+
+      controller.setDayHours(day, newTime);
+    }
+  }
 }
 
-// Add this to your categories file or create it
 class RestaurantCategories {
   static const List<String> categories = [
     'Fast Food',
