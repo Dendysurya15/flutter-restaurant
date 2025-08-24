@@ -19,6 +19,7 @@ abstract class Routes {
   static const DASHBOARD_CUSTOMER = _Paths.DASHBOARD_CUSTOMER;
   static const SEARCH_PAGE_CUSTOMER = _Paths.SEARCH_PAGE_CUSTOMER;
   static const PROFILE = _Paths.PROFILE;
+  static const PURCHASED_STORE_DETAIL = _Paths.PURCHASED_STORE_DETAIL;
 }
 
 abstract class _Paths {
@@ -39,4 +40,5 @@ abstract class _Paths {
   static const DASHBOARD_CUSTOMER = '/dashboard-customer';
   static const SEARCH_PAGE_CUSTOMER = '/search-customer';
   static const PROFILE = '/profile';
+  static const PURCHASED_STORE_DETAIL = '/purchased-store-detail';
 }

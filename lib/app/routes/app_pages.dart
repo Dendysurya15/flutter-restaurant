@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'package:restaurant/app/modules/dashboard_customer/views/search_customer_view.dart';
 
 import '../modules/admin_manage_store/bindings/admin_manage_store_binding.dart';
 import '../modules/admin_manage_store/views/admin_manage_store_view.dart';
@@ -7,6 +6,7 @@ import '../modules/dashboard_admin/bindings/dashboard_admin_binding.dart';
 import '../modules/dashboard_admin/views/dashboard_admin_view.dart';
 import '../modules/dashboard_customer/bindings/dashboard_customer_binding.dart';
 import '../modules/dashboard_customer/views/dashboard_customer_view.dart';
+import '../modules/dashboard_customer/views/search_customer_view.dart';
 import '../modules/dashboard_owner/bindings/dashboard_owner_binding.dart';
 import '../modules/dashboard_owner/views/dashboard_owner_view.dart';
 import '../modules/home/bindings/home_binding.dart';
@@ -15,6 +15,8 @@ import '../modules/login/bindings/login_binding.dart';
 import '../modules/login/views/login_view.dart';
 import '../modules/profile/bindings/profile_binding.dart';
 import '../modules/profile/views/profile_view.dart';
+import '../modules/purchased_store_detail/bindings/purchased_store_detail_binding.dart';
+import '../modules/purchased_store_detail/views/purchased_store_detail_view.dart';
 import '../modules/reset_password/bindings/reset_password_binding.dart';
 import '../modules/reset_password/views/reset_password_view.dart';
 import '../modules/signup/bindings/signup_binding.dart';
@@ -102,6 +104,11 @@ class AppPages {
       name: _Paths.PROFILE,
       page: () => const ProfileView(),
       binding: ProfileBinding(),
+    ),
+    GetPage(
+      name: _Paths.PURCHASED_STORE_DETAIL,
+      page: () => const PurchasedStoreDetailView(),
+      binding: PurchasedStoreDetailBinding(),
     ),
   ];
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/data/models/store_model.dart';
 
@@ -125,12 +126,7 @@ class DashboardCustomerController extends GetxController {
 
   // Navigate to store detail (you can implement this later)
   void goToStoreDetail(StoreModel store) {
-    // TODO: Navigate to store menu/detail page
-    Get.snackbar(
-      'Store Selected',
-      'Opening ${store.name}...',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    Get.toNamed(Routes.PURCHASED_STORE_DETAIL, arguments: store);
   }
 
   // Get stores by category (for future category filtering)
