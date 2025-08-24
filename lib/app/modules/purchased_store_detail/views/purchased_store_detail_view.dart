@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:restaurant/app/services/cart_service.dart'; // Update path as needed
-import 'package:restaurant/app/data/models/cart_item_model.dart';
 import 'package:restaurant/app/modules/purchased_store_detail/widgets/item_display.dart';
 import 'package:restaurant/app/modules/purchased_store_detail/controllers/purchased_store_detail_controller.dart';
+import 'package:restaurant/app/widgets/cart_bottom_nav.dart';
 
 class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
   const PurchasedStoreDetailView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cartService = CartService();
-
     return Scaffold(
       body: Obx(() {
         if (controller.store.value == null) {
@@ -77,88 +74,13 @@ class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
           ),
         );
       }),
-      bottomNavigationBar: StreamBuilder<List<CartItemModel>>(
-        stream: cartService.cartStream,
-        builder: (context, snapshot) {
-          final cartItems = cartService.cartItems;
-          if (cartItems.isEmpty) return const SizedBox.shrink();
-
-          final totalItems = cartItems.fold<int>(
-            0,
-            (sum, item) => sum + item.quantity,
-          );
-          final totalPrice = cartItems.fold<double>(
-            0,
-            (sum, item) => sum + item.quantity * item.price,
-          );
-
-          return Obx(() {
-            final store = controller.store.value;
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          store?.name ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          '$totalItems items',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    'Rp.${totalPrice.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Navigate to cart page
-                      Get.toNamed('/cart');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Lihat Keranjang'),
-                  ),
-                ],
-              ),
-            );
-          });
-        },
-      ),
+      bottomNavigationBar: Obx(() {
+        final store = controller.store.value;
+        return CartBottomNavWidget(
+          currentStoreId: store?.id,
+          currentStoreName: store?.name,
+        );
+      }),
     );
   }
 
@@ -260,7 +182,6 @@ class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
                   ),
                 ],
               ),
-
               if (store.description != null &&
                   store.description!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -269,9 +190,7 @@ class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
-
               const SizedBox(height: 16),
-
               // Store Details Row
               Row(
                 children: [
@@ -296,9 +215,7 @@ class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
                   ],
                 ],
               ),
-
               const SizedBox(height: 8),
-
               // Service Options
               Row(
                 children: [
@@ -366,7 +283,6 @@ class PurchasedStoreDetailView extends GetView<PurchasedStoreDetailController> {
                     ),
                 ],
               ),
-
               if (store.getTodayHours() != null) ...[
                 const SizedBox(height: 8),
                 Row(

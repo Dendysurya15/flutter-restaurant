@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:restaurant/app/services/cart_service.dart';
+import 'package:restaurant/app/widgets/cart_bottom_nav.dart';
 import 'package:restaurant/app/modules/dashboard_customer/widgets/store_card.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import '../controllers/dashboard_customer_controller.dart';
@@ -18,6 +20,22 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
+      bottomNavigationBar: Obx(() {
+        // Get store name from cart items by matching with filtered stores
+        String? storeName;
+        final cartService = CartService();
+        final cartItems = cartService.cartItems;
+
+        if (cartItems.isNotEmpty) {
+          final firstItem = cartItems.first;
+          final store = controller.filteredStores.firstWhereOrNull(
+            (s) => s.id == firstItem.storeId,
+          );
+          storeName = store?.name;
+        }
+
+        return CartBottomNavWidget(currentStoreName: storeName);
+      }),
       body: Column(
         children: [
           // Search Section
@@ -128,7 +146,7 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
               return RefreshIndicator(
                 onRefresh: controller.refreshStores,
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: controller.filteredStores.length,
                   itemBuilder: (context, index) {
                     final store = controller.filteredStores[index];
