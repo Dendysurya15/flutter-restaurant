@@ -1,3 +1,4 @@
+import 'package:restaurant/app/services/cart_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/services/auth_service.dart';
 import 'package:restaurant/app/utils/loading.dart';
@@ -21,6 +22,7 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+  await CartService().init();
 
   runApp(MyApp());
 }

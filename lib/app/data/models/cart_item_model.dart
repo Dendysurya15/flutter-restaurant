@@ -1,12 +1,34 @@
+import 'package:hive/hive.dart';
+
+part 'cart_item_model.g.dart';
+
+@HiveType(typeId: 0)
 class CartItemModel {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   final String customerId;
+
+  @HiveField(2)
   final String storeId;
+
+  @HiveField(3)
   final String menuItemId;
+
+  @HiveField(4)
   final int quantity;
+
+  @HiveField(5)
   final double price;
+
+  @HiveField(6)
   final String? specialInstructions;
+
+  @HiveField(7)
   final DateTime createdAt;
+
+  @HiveField(8)
   final DateTime updatedAt;
 
   CartItemModel({
@@ -49,5 +71,29 @@ class CartItemModel {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+  }
+
+  CartItemModel copyWith({
+    String? id,
+    String? customerId,
+    String? storeId,
+    String? menuItemId,
+    int? quantity,
+    double? price,
+    String? specialInstructions,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return CartItemModel(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      storeId: storeId ?? this.storeId,
+      menuItemId: menuItemId ?? this.menuItemId,
+      quantity: quantity ?? this.quantity,
+      price: price ?? this.price,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

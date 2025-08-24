@@ -1,33 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:restaurant/app/data/models/cart_item_model.dart';
 import 'package:restaurant/app/data/models/menu_item_model.dart';
-import 'package:restaurant/app/modules/cart_item/controllers/cart_item_controller.dart';
+import 'package:restaurant/app/services/cart_service.dart'; // Update this path
 
-class ItemDisplayWidget extends StatelessWidget {
+class ItemDisplayWidget extends StatefulWidget {
   final MenuItemModel item;
   final VoidCallback? onTap;
 
   const ItemDisplayWidget({super.key, required this.item, this.onTap});
 
   @override
+  State<ItemDisplayWidget> createState() => _ItemDisplayWidgetState();
+}
+
+class _ItemDisplayWidgetState extends State<ItemDisplayWidget> {
+  final CartService cartService = CartService();
+
+  @override
   Widget build(BuildContext context) {
-    final cartController = Get.find<CartItemController>();
-    CartItemModel? cartItem = cartController.getCartItem(item.id);
-    // If not in cart, create a temporary cartItem with quantity 1 for UI
-    if (cartItem == null) {
-      cartItem = CartItemModel(
-        id: '',
-        customerId: '',
-        storeId: item.storeId ?? '',
-        menuItemId: item.id,
-        quantity: 1,
-        price: item.price,
-        specialInstructions: null,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-    }
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 2,
@@ -42,7 +32,7 @@ class ItemDisplayWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.name,
+                    widget.item.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -52,18 +42,18 @@ class ItemDisplayWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Rp.${item.price}',
+                    'Rp.${widget.item.price}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                       fontSize: 15,
                     ),
                   ),
-                  if (item.description != null &&
-                      item.description!.isNotEmpty) ...[
+                  if (widget.item.description != null &&
+                      widget.item.description!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      item.description!,
+                      widget.item.description!,
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 13,
@@ -72,7 +62,7 @@ class ItemDisplayWidget extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  if (item.preparationTime != null) ...[
+                  if (widget.item.preparationTime != null) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -83,7 +73,7 @@ class ItemDisplayWidget extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${item.preparationTime} min',
+                          '${widget.item.preparationTime} min',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 12,
@@ -105,39 +95,64 @@ class ItemDisplayWidget extends StatelessWidget {
                 SizedBox(
                   width: 60,
                   height: 28,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove, size: 18),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        onPressed: () {
-                          if (cartController.getCartItem(item.id) == null ||
-                              cartItem!.quantity <= 1) {
-                            cartController.removeItem(item.id);
-                          } else {
-                            cartController.decrementItem(item.id);
-                          }
-                        },
-                      ),
-                      Text(
-                        '${cartController.getCartItem(item.id)?.quantity ?? 1}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add, size: 18),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        onPressed: () {
-                          if (cartController.getCartItem(item.id) == null) {
-                            cartController.addToCart(item);
-                          } else {
-                            cartController.incrementItem(item.id);
-                          }
-                        },
-                      ),
-                    ],
+                  child: StreamBuilder<List<CartItemModel>>(
+                    stream: cartService.cartStream,
+                    builder: (context, snapshot) {
+                      final cartItem = cartService.getCartItem(widget.item.id);
+                      final quantity = cartItem?.quantity ?? 0;
+
+                      if (quantity == 0) {
+                        // Show only + button when quantity is 0
+                        return IconButton(
+                          icon: const Icon(Icons.add, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          onPressed: () {
+                            cartService.addToCart(widget.item);
+                          },
+                        );
+                      } else {
+                        // Show counter when quantity > 0
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                if (quantity <= 1) {
+                                  cartService.removeItem(widget.item.id);
+                                } else {
+                                  cartService.decrementItem(widget.item.id);
+                                }
+                              },
+                            ),
+                            Text(
+                              '$quantity',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                cartService.incrementItem(widget.item.id);
+                              },
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ),
               ],
@@ -156,11 +171,11 @@ class ItemDisplayWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         color: Colors.grey.shade200,
       ),
-      child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+      child: widget.item.imageUrl != null && widget.item.imageUrl!.isNotEmpty
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                item.imageUrl!,
+                widget.item.imageUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     _buildPlaceholder(),
@@ -192,28 +207,11 @@ class ItemDisplayWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTitle() {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            item.name,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(width: 8),
-        _buildTags(),
-      ],
-    );
-  }
-
   Widget _buildTags() {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (item.isVegetarian)
+        if (widget.item.isVegetarian)
           Container(
             margin: const EdgeInsets.only(right: 4),
             padding: const EdgeInsets.all(2),
@@ -223,7 +221,7 @@ class ItemDisplayWidget extends StatelessWidget {
             ),
             child: const Icon(Icons.eco, color: Colors.white, size: 12),
           ),
-        if (item.isSpicy)
+        if (widget.item.isSpicy)
           Container(
             margin: const EdgeInsets.only(right: 4),
             padding: const EdgeInsets.all(2),
@@ -237,114 +235,6 @@ class ItemDisplayWidget extends StatelessWidget {
               size: 12,
             ),
           ),
-      ],
-    );
-  }
-
-  Widget _buildSubtitle() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (item.description != null && item.description!.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            item.description!,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Text(
-              'Rp.${item.price}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-                fontSize: 16,
-              ),
-            ),
-            if (item.preparationTime != null) ...[
-              const SizedBox(width: 12),
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 14,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${item.preparationTime} min',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTrailing(BuildContext context) {
-    // Use a controller/provider for cart state, here is a simple example using GetX
-    final cartController = Get.find<CartItemController>();
-    final cartItem = cartController.getCartItem(item.id);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(width: 48, height: 48, child: _buildImage()),
-        const SizedBox(width: 8),
-        cartItem == null
-            ? SizedBox(
-                height: 32,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    minimumSize: const Size(60, 32),
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Tambah', style: TextStyle(fontSize: 12)),
-                  onPressed: () {
-                    cartController.addToCart(item);
-                  },
-                ),
-              )
-            : SizedBox(
-                height: 32,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove, size: 18),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      onPressed: () {
-                        cartController.decrementItem(item.id);
-                      },
-                    ),
-                    Text(
-                      '${cartItem.quantity}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 18),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      onPressed: () {
-                        cartController.incrementItem(item.id);
-                      },
-                    ),
-                  ],
-                ),
-              ),
       ],
     );
   }
