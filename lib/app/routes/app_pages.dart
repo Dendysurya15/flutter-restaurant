@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 
 import '../modules/admin_manage_store/bindings/admin_manage_store_binding.dart';
 import '../modules/admin_manage_store/views/admin_manage_store_view.dart';
+import '../modules/cart_item/bindings/cart_item_binding.dart';
+import '../modules/cart_item/views/cart_item_view.dart';
 import '../modules/dashboard_admin/bindings/dashboard_admin_binding.dart';
 import '../modules/dashboard_admin/views/dashboard_admin_view.dart';
 import '../modules/dashboard_customer/bindings/dashboard_customer_binding.dart';
@@ -109,6 +111,11 @@ class AppPages {
       name: _Paths.PURCHASED_STORE_DETAIL,
       page: () => const PurchasedStoreDetailView(),
       binding: PurchasedStoreDetailBinding(),
+    ),
+    GetPage(
+      name: _Paths.CART_ITEM,
+      page: () => const CartItemView(),
+      binding: CartItemBinding(),
     ),
   ];
 }

@@ -20,6 +20,7 @@ abstract class Routes {
   static const SEARCH_PAGE_CUSTOMER = _Paths.SEARCH_PAGE_CUSTOMER;
   static const PROFILE = _Paths.PROFILE;
   static const PURCHASED_STORE_DETAIL = _Paths.PURCHASED_STORE_DETAIL;
+  static const CART_ITEM = _Paths.CART_ITEM;
 }
 
 abstract class _Paths {
@@ -41,4 +42,5 @@ abstract class _Paths {
   static const SEARCH_PAGE_CUSTOMER = '/search-customer';
   static const PROFILE = '/profile';
   static const PURCHASED_STORE_DETAIL = '/purchased-store-detail';
+  static const CART_ITEM = '/cart-item';
 }

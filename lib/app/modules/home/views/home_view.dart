@@ -31,18 +31,20 @@ class HomeView extends GetView<HomeController> {
           ],
         ),
         body: Obx(() => pages[controller.selectedIndex.value]),
-        bottomNavigationBar: Obx(
-          () => BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            items: bottomNavItem,
-            currentIndex: controller.selectedIndex.value,
-            selectedItemColor: _getSelectedColor(userRole),
-            unselectedItemColor: Colors.grey,
-            onTap: (index) {
-              controller.selectedIndex.value = index;
-            },
-          ),
-        ),
+        bottomNavigationBar: userRole.toLowerCase() == "customer"
+            ? null
+            : Obx(
+                () => BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  items: bottomNavItem,
+                  currentIndex: controller.selectedIndex.value,
+                  selectedItemColor: _getSelectedColor(userRole),
+                  unselectedItemColor: Colors.grey,
+                  onTap: (index) {
+                    controller.selectedIndex.value = index;
+                  },
+                ),
+              ),
       );
     });
   }

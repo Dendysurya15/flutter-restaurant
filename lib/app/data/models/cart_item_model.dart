@@ -4,6 +4,7 @@ class CartItemModel {
   final String storeId;
   final String menuItemId;
   final int quantity;
+  final double price;
   final String? specialInstructions;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -14,6 +15,7 @@ class CartItemModel {
     required this.storeId,
     required this.menuItemId,
     required this.quantity,
+    required this.price,
     this.specialInstructions,
     required this.createdAt,
     required this.updatedAt,
@@ -26,6 +28,9 @@ class CartItemModel {
       storeId: json['store_id'],
       menuItemId: json['menu_item_id'],
       quantity: json['quantity'],
+      price: (json['price'] is int)
+          ? (json['price'] as int).toDouble()
+          : (json['price'] ?? 0.0),
       specialInstructions: json['special_instructions'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
@@ -39,6 +44,7 @@ class CartItemModel {
       'store_id': storeId,
       'menu_item_id': menuItemId,
       'quantity': quantity,
+      'price': price,
       'special_instructions': specialInstructions,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
