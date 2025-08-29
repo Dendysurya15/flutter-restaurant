@@ -23,7 +23,8 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
       bottomNavigationBar: Obx(() {
         // Get store name from cart items by matching with filtered stores
         String? storeName;
-        final cartService = CartService();
+        final cartService = Get.find<CartService>();
+
         final cartItems = cartService.cartItems;
 
         if (cartItems.isNotEmpty) {

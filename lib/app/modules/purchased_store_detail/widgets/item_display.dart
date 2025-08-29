@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:restaurant/app/data/models/cart_item_model.dart';
 import 'package:restaurant/app/data/models/menu_item_model.dart';
-import 'package:restaurant/app/services/cart_service.dart'; // Update this path
+import 'package:restaurant/app/services/cart_service.dart';
 
 class ItemDisplayWidget extends StatefulWidget {
   final MenuItemModel item;
@@ -14,8 +15,6 @@ class ItemDisplayWidget extends StatefulWidget {
 }
 
 class _ItemDisplayWidgetState extends State<ItemDisplayWidget> {
-  final CartService cartService = CartService();
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -93,11 +92,10 @@ class _ItemDisplayWidgetState extends State<ItemDisplayWidget> {
                 SizedBox(width: 60, height: 60, child: _buildImage()),
                 const SizedBox(height: 8),
                 SizedBox(
-                  width: 60,
+                  width: 80, // Increased from 60 to 80
                   height: 28,
-                  child: StreamBuilder<List<CartItemModel>>(
-                    stream: cartService.cartStream,
-                    builder: (context, snapshot) {
+                  child: GetBuilder<CartService>(
+                    builder: (cartService) {
                       final cartItem = cartService.getCartItem(widget.item.id);
                       final quantity = cartItem?.quantity ?? 0;
 
@@ -121,33 +119,49 @@ class _ItemDisplayWidgetState extends State<ItemDisplayWidget> {
                       } else {
                         // Show counter when quantity > 0
                         return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween, // Better spacing
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove, size: 18),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                if (quantity <= 1) {
-                                  cartService.removeItem(widget.item.id);
-                                } else {
-                                  cartService.decrementItem(widget.item.id);
-                                }
-                              },
+                            SizedBox(
+                              width: 24, // Fixed width for minus button
+                              height: 24,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.remove,
+                                  size: 16,
+                                ), // Smaller icon
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  if (quantity <= 1) {
+                                    cartService.removeItem(widget.item.id);
+                                  } else {
+                                    cartService.decrementItem(widget.item.id);
+                                  }
+                                },
+                              ),
                             ),
                             Text(
                               '$quantity',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 14, // Slightly smaller
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 18),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                cartService.incrementItem(widget.item.id);
-                              },
+                            SizedBox(
+                              width: 24, // Fixed width for plus button
+                              height: 24,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.add,
+                                  size: 16,
+                                ), // Smaller icon
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  cartService.incrementItem(widget.item.id);
+                                },
+                              ),
                             ),
                           ],
                         );

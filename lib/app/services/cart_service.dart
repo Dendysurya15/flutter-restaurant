@@ -1,40 +1,43 @@
 import 'dart:async';
+import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:restaurant/app/data/models/cart_item_model.dart';
 import 'package:restaurant/app/data/models/menu_item_model.dart';
 
-class CartService {
+class CartService extends GetxController {
   static const String _boxName = 'cart_items';
   late Box<CartItemModel> _cartBox;
 
-  // Stream controller to notify UI of changes
-  final StreamController<List<CartItemModel>> _cartStreamController =
-      StreamController<List<CartItemModel>>.broadcast();
-
-  Stream<List<CartItemModel>> get cartStream => _cartStreamController.stream;
+  // Use GetX observable instead of Stream
+  final RxList<CartItemModel> _cartItems = <CartItemModel>[].obs;
 
   // Singleton pattern
   static final CartService _instance = CartService._internal();
   factory CartService() => _instance;
   CartService._internal();
 
+  // Getter for reactive cart items
+  RxList<CartItemModel> get cartItems => _cartItems;
+
   // Initialize Hive and open the box
   Future<void> init() async {
     await Hive.initFlutter();
 
-    // Register the adapter if not already registered
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(CartItemModelAdapter());
     }
 
     _cartBox = await Hive.openBox<CartItemModel>(_boxName);
 
-    // Emit initial cart items
-    _emitCartItems();
+    // Load initial cart items into observable list
+    _loadCartItems();
   }
 
-  // Get all cart items
-  List<CartItemModel> get cartItems => _cartBox.values.toList();
+  // Load cart items from Hive into observable list
+  void _loadCartItems() {
+    _cartItems.value = _cartBox.values.toList();
+    update(); // Notify GetBuilder widgets
+  }
 
   // Add item to cart
   Future<void> addToCart(MenuItemModel item) async {
@@ -46,7 +49,7 @@ class CartService {
 
     final cartItem = CartItemModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      customerId: 'customer_id', // Replace with actual customer id
+      customerId: 'customer_id',
       storeId: item.storeId ?? '',
       menuItemId: item.id,
       quantity: 1,
@@ -56,8 +59,9 @@ class CartService {
       updatedAt: DateTime.now(),
     );
 
+    // Save to Hive then update observable
     await _cartBox.put(cartItem.menuItemId, cartItem);
-    _emitCartItems();
+    _loadCartItems();
   }
 
   // Get cart item by menuItemId
@@ -81,7 +85,7 @@ class CartService {
         updatedAt: DateTime.now(),
       );
       await _cartBox.put(menuItemId, updated);
-      _emitCartItems();
+      _loadCartItems();
     }
   }
 
@@ -105,37 +109,31 @@ class CartService {
       } else {
         await _cartBox.delete(menuItemId);
       }
-      _emitCartItems();
+      _loadCartItems();
     }
   }
 
   // Remove item from cart
   Future<void> removeItem(String menuItemId) async {
     await _cartBox.delete(menuItemId);
-    _emitCartItems();
+    _loadCartItems();
   }
 
   // Clear cart
   Future<void> clearCart() async {
     await _cartBox.clear();
-    _emitCartItems();
+    _loadCartItems();
   }
 
-  // Total items
-  int get totalItems => cartItems.fold(0, (sum, item) => sum + item.quantity);
+  // Total items - now reactive
+  int get totalItems => _cartItems.fold(0, (sum, item) => sum + item.quantity);
 
-  // Total price
+  // Total price - now reactive
   double get totalPrice =>
-      cartItems.fold(0, (sum, item) => sum + item.quantity * item.price);
+      _cartItems.fold(0, (sum, item) => sum + item.quantity * item.price);
 
-  // Private method to emit cart changes
-  void _emitCartItems() {
-    _cartStreamController.add(cartItems);
-  }
-
-  // Close the box and stream controller
+  // Close the box
   Future<void> dispose() async {
-    await _cartStreamController.close();
     await _cartBox.close();
   }
 }
