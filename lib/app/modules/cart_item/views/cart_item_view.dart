@@ -9,8 +9,6 @@ class CartItemView extends GetView<CartItemController> {
 
   @override
   Widget build(BuildContext context) {
-    final cartService = CartService();
-
     return Scaffold(
       appBar: AppBar(
         title: Obx(() {
@@ -31,7 +29,6 @@ class CartItemView extends GetView<CartItemController> {
         elevation: 0,
       ),
 
-      // Replace this part in your CartItemView:
       body: Obx(() {
         if (controller.isLoadingData.value) {
           return const Center(
@@ -46,9 +43,7 @@ class CartItemView extends GetView<CartItemController> {
           );
         }
 
-        // Replace StreamBuilder with direct access to observable
-        final cartService =
-            Get.find<CartService>(); // Use Get.find instead of CartService()
+        final cartService = Get.find<CartService>();
         final cartItems = cartService.cartItems;
 
         if (cartItems.isEmpty) {
@@ -81,12 +76,17 @@ class CartItemView extends GetView<CartItemController> {
                       return const SizedBox.shrink();
                     }),
 
-                    // Section 3: Special Instructions
+                    // Section 3: Payment Method Selection
+                    _buildPaymentMethodSection(),
+
+                    const SizedBox(height: 20),
+
+                    // Section 4: Special Instructions
                     _buildSpecialInstructionsSection(),
 
                     const SizedBox(height: 20),
 
-                    // Section 4: Cart Items List
+                    // Section 5: Cart Items List
                     _buildCartItemsList(cartItems),
 
                     const SizedBox(height: 20),
@@ -306,6 +306,101 @@ class CartItemView extends GetView<CartItemController> {
     );
   }
 
+  Widget _buildPaymentMethodSection() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.payment, color: Colors.blue.shade700),
+                const SizedBox(width: 8),
+                const Text(
+                  'Payment Method',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Obx(() {
+              final selectedMethod = controller.selectedPaymentMethod.value;
+
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: selectedMethod != null
+                    ? Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: selectedMethod.color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              selectedMethod.icon,
+                              color: selectedMethod.color,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  selectedMethod.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  selectedMethod.description,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Select payment method',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+              );
+            }),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: controller.showPaymentMethodBottomSheet,
+                icon: const Icon(Icons.edit),
+                label: const Text('Change Payment Method'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSpecialInstructionsSection() {
     return Card(
       elevation: 2,
@@ -388,10 +483,8 @@ class CartItemView extends GetView<CartItemController> {
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 final item = cartItems[index];
-
-                // Get menu item data from controller's map
                 final menuItem = controller.menuItems[item.menuItemId];
-                print("laskdjfkdjsfk $menuItem");
+
                 return Row(
                   children: [
                     // Menu item image or placeholder
@@ -435,7 +528,6 @@ class CartItemView extends GetView<CartItemController> {
                               fontSize: 12,
                             ),
                           ),
-                          // Show menu description if available
                           if (menuItem?.description != null &&
                               menuItem!.description!.isNotEmpty)
                             Text(
@@ -636,46 +728,21 @@ class CartItemView extends GetView<CartItemController> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: Obx(() {
-              return ElevatedButton(
-                onPressed: controller.isProcessingOrder.value
-                    ? null
-                    : controller.processOrder,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+            child: ElevatedButton(
+              onPressed: controller.showConfirmationModal, // Change this line
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: controller.isProcessingOrder.value
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Processing Order...'),
-                        ],
-                      )
-                    : const Text(
-                        'Place Order',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              );
-            }),
+              ),
+              child: const Text(
+                'Continue Order',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),

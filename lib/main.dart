@@ -5,7 +5,8 @@ import 'package:restaurant/app/utils/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:toastification/toastification.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Add this
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:midtrans_sdk/midtrans_sdk.dart'; // Add this
 import 'app/routes/app_pages.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -15,18 +16,33 @@ void main() async {
 
   // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
-  Get.put(prefs, permanent: true); // Make it available globally
+  Get.put(prefs, permanent: true);
 
   // Initialize Supabase
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // Initialize Midtrans SDK
+  MidtransSDK.init(
+    config: MidtransConfig(
+      clientKey: dotenv.env['MIDTRANS_CLIENT_KEY']!,
+      merchantBaseUrl: dotenv.env['MIDTRANS_MERCHANT_BASE_URL']!,
+      colorTheme: ColorTheme(
+        colorPrimary: Colors.blue,
+        colorPrimaryDark: Colors.blue.shade800,
+        colorSecondary: Colors.blueAccent,
+      ),
+    ),
+  );
+
   await CartService().init();
 
   runApp(MyApp());
 }
 
+// Rest of your code stays exactly the same
 class MyApp extends StatelessWidget {
   final authC = Get.put(AuthService(), permanent: true);
 
