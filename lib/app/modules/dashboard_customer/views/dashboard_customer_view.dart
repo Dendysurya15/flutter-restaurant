@@ -19,6 +19,45 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
+        actions: [
+          // Add history button with badge
+          Obx(() {
+            return Stack(
+              children: [
+                IconButton(
+                  onPressed: controller.goToOrdersHistory,
+                  icon: const Icon(Icons.history),
+                ),
+                if (controller.pendingOrdersCount.value > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${controller.pendingOrdersCount.value}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
+          const SizedBox(width: 8),
+        ],
       ),
       bottomNavigationBar: Obx(() {
         // Get store name from cart items by matching with filtered stores

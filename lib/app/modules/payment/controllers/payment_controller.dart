@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:restaurant/app/data/models/order_model.dart';
 import 'package:restaurant/app/data/models/payment_model.dart';
@@ -55,6 +56,27 @@ class PaymentController extends GetxController {
 
     // Navigate back to cart or home
     Get.offAllNamed(Routes.HOME);
+  }
+
+  void showExitDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Cancel Payment?'),
+        content: const Text(
+          'Your order will be cancelled if you leave this page.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Stay')),
+          TextButton(
+            onPressed: () {
+              Get.back(); // Close dialog
+              Get.offAllNamed('/home'); // Go to home
+            },
+            child: const Text('Leave', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   void processPayment() async {

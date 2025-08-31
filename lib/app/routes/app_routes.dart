@@ -22,6 +22,7 @@ abstract class Routes {
   static const PURCHASED_STORE_DETAIL = _Paths.PURCHASED_STORE_DETAIL;
   static const CART_ITEM = _Paths.CART_ITEM;
   static const PAYMENT = _Paths.PAYMENT;
+  static const HISTORY_ORDERS = _Paths.HISTORY_ORDERS;
 }
 
 abstract class _Paths {
@@ -45,4 +46,5 @@ abstract class _Paths {
   static const PURCHASED_STORE_DETAIL = '/purchased-store-detail';
   static const CART_ITEM = '/cart-item';
   static const PAYMENT = '/payment';
+  static const HISTORY_ORDERS = '/history-orders';
 }

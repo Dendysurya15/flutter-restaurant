@@ -545,25 +545,6 @@ class CartItemController extends GetxController {
 
     isProcessingOrder.value = true;
 
-    print('🚀 Creating order with data:');
-    print('   customerId: ${currentUser.value!.id}');
-    print('   storeId: ${storeInfo.value!.id}');
-    print('   orderType: ${selectedOrderType.value}');
-    print('   customerName: ${currentUser.value!.fullName ?? 'Customer'}');
-    print('   customerPhone: ${currentUser.value!.phone ?? '+628123456789'}');
-    print(
-      '   deliveryAddress: ${selectedOrderType.value == 'delivery' ? deliveryAddress.value : null}',
-    );
-    print('   subtotal: $subtotal');
-    print('   deliveryFee: $deliveryFee');
-    print('   totalAmount: $totalAmount');
-    print(
-      '   paymentMethod: ${selectedPaymentMethod.value!.id}',
-    ); // This is the problematic field
-    print(
-      '   specialInstructions: ${specialInstructions.value.isEmpty ? null : specialInstructions.value}',
-    );
-    print('   cartItems count: ${cartService.cartItems.length}');
     try {
       // Create order with payment in Supabase
       final result = await orderService.createOrderWithPayment(
@@ -600,7 +581,7 @@ class CartItemController extends GetxController {
         );
 
         // Navigate to payment countdown view
-        Get.toNamed(
+        Get.offNamed(
           Routes.PAYMENT,
           arguments: {'order': order, 'payment': payment},
         );

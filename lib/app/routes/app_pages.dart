@@ -11,6 +11,8 @@ import '../modules/dashboard_customer/views/dashboard_customer_view.dart';
 import '../modules/dashboard_customer/views/search_customer_view.dart';
 import '../modules/dashboard_owner/bindings/dashboard_owner_binding.dart';
 import '../modules/dashboard_owner/views/dashboard_owner_view.dart';
+import '../modules/history_orders/bindings/history_orders_binding.dart';
+import '../modules/history_orders/views/history_orders_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/login/bindings/login_binding.dart';
@@ -123,6 +125,11 @@ class AppPages {
       name: _Paths.PAYMENT,
       page: () => const PaymentView(),
       binding: PaymentBinding(),
+    ),
+    GetPage(
+      name: _Paths.HISTORY_ORDERS,
+      page: () => const HistoryOrdersView(),
+      binding: HistoryOrdersBinding(),
     ),
   ];
 }
