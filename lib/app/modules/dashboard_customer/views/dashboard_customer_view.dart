@@ -12,53 +12,6 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Find Restaurants'),
-        centerTitle: true,
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          // Add history button with badge
-          Obx(() {
-            return Stack(
-              children: [
-                IconButton(
-                  onPressed: controller.goToOrdersHistory,
-                  icon: const Icon(Icons.history),
-                ),
-                if (controller.pendingOrdersCount.value > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '${controller.pendingOrdersCount.value}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }),
-          const SizedBox(width: 8),
-        ],
-      ),
       bottomNavigationBar: Obx(() {
         // Get store name from cart items by matching with filtered stores
         String? storeName;
@@ -82,68 +35,71 @@ class DashboardCustomerView extends GetView<DashboardCustomerController> {
           Container(
             color: Colors.blue.shade600,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            child: Column(
-              children: [
-                // Fake Search Bar (Navigation to Search Page)
-                GestureDetector(
-                  onTap: () => Get.toNamed(
-                    Routes.SEARCH_PAGE_CUSTOMER,
-                  ), // Navigate to search page
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 15,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, color: Colors.grey),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Search restaurants, food...',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 16,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                children: [
+                  // Fake Search Bar (Navigation to Search Page)
+                  GestureDetector(
+                    onTap: () => Get.toNamed(
+                      Routes.SEARCH_PAGE_CUSTOMER,
+                    ), // Navigate to search page
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, color: Colors.grey),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Search restaurants, food...',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // Quick Filters
-                SizedBox(
-                  height: 35,
-                  child: Obx(
-                    () => ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildFilterChip(
-                          'All',
-                          controller.selectedFilter.value == 'All',
-                        ),
-                        _buildFilterChip(
-                          'Open Now',
-                          controller.selectedFilter.value == 'Open Now',
-                        ),
-                        _buildFilterChip(
-                          'Delivery',
-                          controller.selectedFilter.value == 'Delivery',
-                        ),
-                        _buildFilterChip(
-                          'Dine In',
-                          controller.selectedFilter.value == 'Dine In',
-                        ),
-                      ],
+                  // Quick Filters
+                  SizedBox(
+                    height: 35,
+                    child: Obx(
+                      () => ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _buildFilterChip(
+                            'All',
+                            controller.selectedFilter.value == 'All',
+                          ),
+                          _buildFilterChip(
+                            'Open Now',
+                            controller.selectedFilter.value == 'Open Now',
+                          ),
+                          _buildFilterChip(
+                            'Delivery',
+                            controller.selectedFilter.value == 'Delivery',
+                          ),
+                          _buildFilterChip(
+                            'Dine In',
+                            controller.selectedFilter.value == 'Dine In',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 

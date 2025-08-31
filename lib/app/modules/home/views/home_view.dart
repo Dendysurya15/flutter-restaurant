@@ -2,6 +2,7 @@ import 'package:restaurant/app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
+import 'package:restaurant/app/modules/dashboard_customer/controllers/dashboard_customer_controller.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -23,7 +24,48 @@ class HomeView extends GetView<HomeController> {
         appBar: AppBar(
           title: Text('Welcome ${authC.userRole.value.toUpperCase()}'),
           centerTitle: true,
+          backgroundColor: Colors.yellow,
           actions: [
+            // 👉 Show history only for customers
+            if (userRole.toLowerCase() == "customer")
+              Obx(() {
+                final dashboardC = Get.find<DashboardCustomerController>();
+
+                return Stack(
+                  children: [
+                    IconButton(
+                      onPressed: dashboardC.goToOrdersHistory,
+                      icon: const Icon(Icons.history),
+                    ),
+                    if (dashboardC.pendingOrdersCount.value > 0)
+                      Positioned(
+                        right: 4,
+                        top: 3,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            '${dashboardC.pendingOrdersCount.value}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }),
+
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () => authC.logout(),
