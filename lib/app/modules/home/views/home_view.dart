@@ -1,6 +1,7 @@
 import 'package:restaurant/app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:restaurant/app/services/payment_timer_service.dart';
 import '../controllers/home_controller.dart';
 import 'package:restaurant/app/modules/dashboard_customer/controllers/dashboard_customer_controller.dart';
 
@@ -30,6 +31,9 @@ class HomeView extends GetView<HomeController> {
             if (userRole.toLowerCase() == "customer")
               Obx(() {
                 final dashboardC = Get.find<DashboardCustomerController>();
+                // Access the observable list directly, not the getter
+                final pendingCount =
+                    PaymentTimerService.to.activePayments.length;
 
                 return Stack(
                   children: [
@@ -37,7 +41,7 @@ class HomeView extends GetView<HomeController> {
                       onPressed: dashboardC.goToOrdersHistory,
                       icon: const Icon(Icons.history),
                     ),
-                    if (dashboardC.pendingOrdersCount.value > 0)
+                    if (pendingCount > 0)
                       Positioned(
                         right: 4,
                         top: 3,
@@ -52,7 +56,7 @@ class HomeView extends GetView<HomeController> {
                             minHeight: 16,
                           ),
                           child: Text(
-                            '${dashboardC.pendingOrdersCount.value}',
+                            '$pendingCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,

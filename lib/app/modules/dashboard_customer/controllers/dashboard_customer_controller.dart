@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
+import 'package:restaurant/app/services/payment_timer_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/data/models/store_model.dart';
 import 'dart:async';
@@ -18,15 +19,14 @@ class DashboardCustomerController extends GetxController {
   final filteredStores = <StoreModel>[].obs;
   final isLoading = false.obs;
 
-  final pendingOrdersCount = 0.obs;
+  // Remove the old getter and replace with this:
+  int get pendingOrdersCount => PaymentTimerService.to.totalPendingPayments;
   Timer? _pendingOrdersTimer;
 
   @override
   void onInit() {
     super.onInit();
     loadStores();
-    loadPendingOrdersCount(); // Load pending orders
-    startPendingOrdersWatcher();
 
     // Listen to search changes
     searchController.addListener(() {
@@ -42,31 +42,6 @@ class DashboardCustomerController extends GetxController {
   void onClose() {
     searchController.dispose();
     super.onClose();
-  }
-
-  Future<void> loadPendingOrdersCount() async {
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      final response = await supabase
-          .from('orders')
-          .select('id')
-          .eq('customer_id', user.id)
-          .eq('payment_status', 'pending')
-          .inFilter('status', ['pending', 'confirmed']);
-
-      pendingOrdersCount.value = response.length;
-    } catch (e) {
-      print('Error loading pending orders count: $e');
-    }
-  }
-
-  // Start watching for pending orders (refresh every 30 seconds)
-  void startPendingOrdersWatcher() {
-    _pendingOrdersTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      loadPendingOrdersCount();
-    });
   }
 
   // Navigate to orders history

@@ -20,10 +20,16 @@ import 'package:toastification/toastification.dart';
 class CartItemController extends GetxController {
   final CartService cartService = Get.find<CartService>();
   final MenuService menuService = Get.find<MenuService>();
+
   bool get mounted => !isClosed;
+
   // Initialize services
   late OrderService orderService;
   late PaymentService paymentService;
+
+  // Add initialization tracking
+  final isInitialized = false.obs;
+  bool _isInitializing = false;
 
   @override
   void onInit() {
@@ -33,91 +39,64 @@ class CartItemController extends GetxController {
       specialInstructions.value = instructionsController.text;
     });
 
-    ever(selectedOrderType, (_) => _updateAvailablePaymentMethods());
+    // Only listen to order type changes AFTER initialization
+    ever(selectedOrderType, (_) {
+      if (isInitialized.value) {
+        _updateAvailablePaymentMethods();
+      }
+    });
   }
 
   @override
   void onReady() {
     super.onReady();
-    // Only this one
-    _initializeEverything();
+    // Use WidgetsBinding to ensure UI is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeEverything();
+    });
   }
 
-  // Remove _initializeData() method completely
-  // Keep only _initializeEverything()
-
   Future<void> _initializeEverything() async {
-    if (!mounted) return; // Safety check
+    if (!mounted || _isInitializing) return;
 
+    _isInitializing = true;
     isLoadingData.value = true;
+    isInitialized.value = false;
 
     try {
-      // Force service initialization
+      // Force service initialization first
       orderService = Get.find<OrderService>();
       paymentService = Get.find<PaymentService>();
 
-      // Load user first
+      // Load user info first
       await loadUserInfo();
 
-      // Then cart data
+      // Then load cart-related data
       final cartItems = cartService.cartItems;
       if (cartItems.isNotEmpty) {
         final storeId = cartItems.first.storeId;
 
-        await loadStoreInfo(storeId);
-        await loadMenuItems(storeId, cartItems);
+        // Load store and menu items in parallel
+        await Future.wait([
+          loadStoreInfo(storeId),
+          loadMenuItems(storeId, cartItems),
+        ]);
 
-        // Force update payment methods with a small delay
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Update payment methods after everything is loaded
         _updateAvailablePaymentMethods();
       }
+
+      // Mark as initialized
+      isInitialized.value = true;
     } catch (e) {
       print('Error in initialization: $e');
+      Get.snackbar('Error', 'Failed to initialize cart: $e');
     } finally {
       if (mounted) {
         isLoadingData.value = false;
+        _isInitializing = false;
       }
     }
-  }
-
-  Future<void> _initializeData() async {
-    isLoadingData.value = true;
-
-    try {
-      // Ensure services are available
-      if (!Get.isRegistered<OrderService>()) {
-        Get.put(OrderService());
-      }
-      if (!Get.isRegistered<PaymentService>()) {
-        Get.put(PaymentService());
-      }
-
-      orderService = Get.find<OrderService>();
-      paymentService = Get.find<PaymentService>();
-
-      // Load everything sequentially
-      await loadUserInfo();
-      await loadCartData();
-    } catch (e) {
-      print('Error initializing data: $e');
-    } finally {
-      isLoadingData.value = false;
-    }
-  }
-
-  Future<void> _ensureServicesInitialized() async {
-    // Wait a bit for services to be registered
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    if (!Get.isRegistered<OrderService>()) {
-      Get.put(OrderService());
-    }
-    if (!Get.isRegistered<PaymentService>()) {
-      Get.put(PaymentService());
-    }
-
-    orderService = Get.find<OrderService>();
-    paymentService = Get.find<PaymentService>();
   }
 
   // Order type selection
@@ -154,12 +133,18 @@ class CartItemController extends GetxController {
     if (!mounted || paymentService == null) return;
 
     try {
-      availablePaymentMethods.value = paymentService.getAvailablePaymentMethods(
+      final methods = paymentService.getAvailablePaymentMethods(
         selectedOrderType.value,
       );
 
-      if (availablePaymentMethods.isNotEmpty) {
-        selectedPaymentMethod.value = availablePaymentMethods.first;
+      availablePaymentMethods.value = methods;
+
+      // Only set selected method if none is selected or if current selection is not available
+      if (selectedPaymentMethod.value == null ||
+          !methods.any((m) => m.id == selectedPaymentMethod.value!.id)) {
+        if (methods.isNotEmpty) {
+          selectedPaymentMethod.value = methods.first;
+        }
       }
     } catch (e) {
       print('Error updating payment methods: $e');
@@ -172,27 +157,6 @@ class CartItemController extends GetxController {
     super.onClose();
   }
 
-  Future<void> loadCartData() async {
-    try {
-      final cartItems = cartService.cartItems;
-
-      if (cartItems.isNotEmpty) {
-        final storeId = cartItems.first.storeId;
-
-        await Future.wait([
-          loadStoreInfo(storeId),
-          loadMenuItems(storeId, cartItems),
-        ]);
-
-        _updateAvailablePaymentMethods();
-      }
-    } catch (e) {
-      print('Error loading cart data: $e');
-      Get.snackbar('Error', 'Failed to load cart data: $e');
-    }
-    // Remove the finally block that sets isLoadingData.value = false
-  }
-
   Future<void> loadStoreInfo(String storeId) async {
     try {
       final response = await StoreService.supabase
@@ -201,9 +165,13 @@ class CartItemController extends GetxController {
           .eq('id', storeId)
           .single();
 
-      storeInfo.value = StoreModel.fromJson(response);
+      if (mounted) {
+        storeInfo.value = StoreModel.fromJson(response);
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to load store information: $e');
+      if (mounted) {
+        Get.snackbar('Error', 'Failed to load store information: $e');
+      }
     }
   }
 
@@ -213,27 +181,31 @@ class CartItemController extends GetxController {
   ) async {
     try {
       final menuItemIds = cartItems.map((item) => item.menuItemId).toList();
-      print('Loading menu items for IDs: $menuItemIds'); // Debug log
+      print('Loading menu items for IDs: $menuItemIds');
 
       final response = await StoreService.supabase
           .from('menu_items')
           .select()
           .filter('id', 'in', '(${menuItemIds.join(',')})');
 
-      print('Menu items response: ${response.length} items'); // Debug log
+      print('Menu items response: ${response.length} items');
 
-      for (final json in response) {
-        final menuItem = MenuItemModel.fromJson(json);
-        menuItems[menuItem.id] = menuItem;
-        print(
-          'Loaded menu item: ${menuItem.name} (${menuItem.id})',
-        ); // Debug log
-      }
+      if (mounted) {
+        final Map<String, MenuItemModel> newMenuItems = {};
 
-      // Check for missing items
-      for (final cartItem in cartItems) {
-        if (!menuItems.containsKey(cartItem.menuItemId)) {
-          print('WARNING: Menu item not found: ${cartItem.menuItemId}');
+        for (final json in response) {
+          final menuItem = MenuItemModel.fromJson(json);
+          newMenuItems[menuItem.id] = menuItem;
+          print('Loaded menu item: ${menuItem.name} (${menuItem.id})');
+        }
+
+        menuItems.value = newMenuItems;
+
+        // Check for missing items
+        for (final cartItem in cartItems) {
+          if (!menuItems.containsKey(cartItem.menuItemId)) {
+            print('WARNING: Menu item not found: ${cartItem.menuItemId}');
+          }
         }
       }
     } catch (e) {
@@ -244,7 +216,7 @@ class CartItemController extends GetxController {
   Future<void> loadUserInfo() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
+      if (user != null && mounted) {
         currentUser.value = UserModel(
           id: user.id,
           email: user.email ?? '',
@@ -261,7 +233,9 @@ class CartItemController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to load user information');
+      if (mounted) {
+        Get.snackbar('Error', 'Failed to load user information');
+      }
     }
   }
 
@@ -547,46 +521,6 @@ class CartItemController extends GetxController {
         processOrder(); // Process the order
       },
       isProcessing: isProcessingOrder.value,
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

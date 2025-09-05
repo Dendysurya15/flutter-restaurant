@@ -17,33 +17,80 @@ class PaymentController extends GetxController {
 
   PaymentController({required this.order, required this.payment});
 
-  // Timer observables - now linked to global service
+  // Timer observables
   final isProcessingPayment = false.obs;
+  final countdownSeconds = 0.obs;
+  final isExpired = false.obs;
   PaymentTimerData? timerData;
 
   @override
   void onInit() {
     super.onInit();
 
-    // Get timer data from arguments or global service
+    // Wait until after the first frame to initialize timer
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeTimer();
+    });
+  }
+
+  void _initializeTimer() {
     final args = Get.arguments as Map<String, dynamic>?;
     timerData = args?['timer_data'] ?? timerService.getPaymentTimer(payment.id);
 
-    // Check if payment is already expired when opening the page
-    final timeSinceOrderCreated = DateTime.now().difference(order.createdAt);
-    final actualRemainingSeconds = 900 - timeSinceOrderCreated.inSeconds;
+    // Use payment.createdAt instead of order.createdAt
+    final timeSincePaymentCreated = DateTime.now().difference(
+      payment.createdAt,
+    );
+    final actualRemainingSeconds =
+        900 - timeSincePaymentCreated.inSeconds; // 15 minutes
+
+    print('🕐 Payment created at: ${payment.createdAt}');
+    print('🕐 Current time: ${DateTime.now()}');
+    print(
+      '🕐 Time since payment created: ${timeSincePaymentCreated.inSeconds} seconds',
+    );
+    print('🕐 Remaining seconds: $actualRemainingSeconds');
 
     if (actualRemainingSeconds <= 0) {
-      // Payment is expired - don't start timer
-      timerData = null;
+      print('⚠️ Payment already expired');
+      countdownSeconds.value = 0;
+      isExpired.value = true;
     } else if (timerData == null) {
-      // Start timer with actual remaining time
+      print('▶️ Starting timer with $actualRemainingSeconds seconds');
       timerService.startPaymentTimer(
         order: order,
         payment: payment,
         durationInSeconds: actualRemainingSeconds,
       );
       timerData = timerService.getPaymentTimer(payment.id);
+
+      // Link the timer data to local observables
+      if (timerData != null) {
+        countdownSeconds.value = timerData!.remainingSeconds.value;
+        isExpired.value = timerData!.isExpired.value;
+
+        // Listen to timer updates
+        ever(timerData!.remainingSeconds, (seconds) {
+          countdownSeconds.value = seconds;
+        });
+
+        ever(timerData!.isExpired, (expired) {
+          isExpired.value = expired;
+        });
+      }
+    } else {
+      // Timer already exists, link to it
+      countdownSeconds.value = timerData!.remainingSeconds.value;
+      isExpired.value = timerData!.isExpired.value;
+
+      // Listen to timer updates
+      ever(timerData!.remainingSeconds, (seconds) {
+        countdownSeconds.value = seconds;
+      });
+
+      ever(timerData!.isExpired, (expired) {
+        isExpired.value = expired;
+      });
     }
   }
 
@@ -53,13 +100,42 @@ class PaymentController extends GetxController {
     super.onClose();
   }
 
-  // Getters that reference the global timer
-  RxInt get countdownSeconds => timerData?.remainingSeconds ?? 0.obs;
-  RxBool get isExpired => timerData?.isExpired ?? false.obs;
-
   String get formattedTime {
-    if (timerData == null) return '00:00';
-    return timerService.formatTime(timerData!.remainingSeconds.value);
+    final minutes = countdownSeconds.value ~/ 60;
+    final seconds = countdownSeconds.value % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  // Add getter for order time formatting
+  String get orderTimeFormatted {
+    return _formatDateTime(order.createdAt);
+  }
+
+  String get paymentTimeFormatted {
+    return _formatDateTime(payment.createdAt);
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    // Format: "5 Sep 2025, 20:44"
+    final months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return '${dateTime.day} ${months[dateTime.month]} ${dateTime.year}, '
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   void showExitDialog() {
