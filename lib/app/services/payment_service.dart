@@ -2,7 +2,10 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:midtrans_sdk/midtrans_sdk.dart';
 import 'package:restaurant/app/data/models/payment_model.dart';
+import 'package:restaurant/app/data/models/order_model.dart';
 import 'package:restaurant/app/services/order_service.dart';
+import 'package:restaurant/app/services/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 
 class PaymentMethodOption {
@@ -152,9 +155,6 @@ class PaymentService extends GetxService {
         throw Exception('Failed to get snap token');
       }
 
-      // Use Completer to handle the callback-based API
-      final completer = Completer<Map<String, dynamic>>();
-
       try {
         await MidtransSDK().startPaymentUiFlow(token: snapToken);
 
@@ -203,9 +203,6 @@ class PaymentService extends GetxService {
       };
     }
   }
-
-  // Remove these methods since we're not using them anymore
-  // _handleMidtransResult, _processTransactionStatus methods are removed
 
   Future<Map<String, dynamic>> _processCashPayment(
     PaymentModel payment,
@@ -289,6 +286,112 @@ class PaymentService extends GetxService {
       );
     } catch (e) {
       print('Error handling payment notification: $e');
+    }
+  }
+
+  // ================================
+  // NEW METHODS FOR TIMER INTEGRATION
+  // ================================
+
+  // Get pending payments for timer service
+  Future<List<Map<String, dynamic>>> getPendingPayments() async {
+    try {
+      final currentUserId = Get.find<AuthService>().currentUser?.id;
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final response = await Supabase.instance.client
+          .from('orders')
+          .select('''
+            *,
+            payments (*)
+          ''')
+          .eq('customer_id', currentUserId)
+          .eq('payment_status', 'pending')
+          .inFilter('status', ['pending', 'confirmed']);
+
+      List<Map<String, dynamic>> pendingPayments = [];
+
+      for (final orderData in response) {
+        final order = OrderModel.fromJson(orderData);
+        final paymentData = orderData['payments'];
+
+        if (paymentData != null && paymentData.isNotEmpty) {
+          final payment = PaymentModel.fromJson(paymentData[0]);
+
+          // Calculate remaining time (15 minutes from creation)
+          final timeSinceCreated = DateTime.now().difference(payment.createdAt);
+          final remainingSeconds =
+              900 - timeSinceCreated.inSeconds; // 15 minutes - elapsed
+
+          if (remainingSeconds > 0) {
+            pendingPayments.add({
+              'order': order,
+              'payment': payment,
+              'remaining_seconds': remainingSeconds,
+            });
+          }
+        }
+      }
+
+      return pendingPayments;
+    } catch (e) {
+      print('Error getting pending payments: $e');
+      return [];
+    }
+  }
+
+  // Update order status (for timer expiration)
+  Future<void> updateOrderStatus(String orderId, String status) async {
+    try {
+      final updateData = {
+        'status': status,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      // Add specific timestamps based on status
+      switch (status.toLowerCase()) {
+        case 'accepted':
+        case 'confirmed':
+          updateData['accepted_at'] = DateTime.now().toIso8601String();
+          break;
+        case 'ready':
+          updateData['ready_at'] = DateTime.now().toIso8601String();
+          break;
+        case 'completed':
+          updateData['completed_at'] = DateTime.now().toIso8601String();
+          break;
+        case 'cancelled':
+          // Update payment status to cancelled if order is cancelled
+          await _updateOrderPaymentStatus(orderId, 'cancelled');
+          break;
+      }
+
+      await Supabase.instance.client
+          .from('orders')
+          .update(updateData)
+          .eq('id', orderId);
+    } catch (e) {
+      print('Error updating order status: $e');
+      throw e;
+    }
+  }
+
+  // Update order payment status helper
+  Future<void> _updateOrderPaymentStatus(
+    String orderId,
+    String paymentStatus,
+  ) async {
+    try {
+      await Supabase.instance.client
+          .from('orders')
+          .update({
+            'payment_status': paymentStatus,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', orderId);
+    } catch (e) {
+      print('Error updating order payment status: $e');
+      throw e;
     }
   }
 }

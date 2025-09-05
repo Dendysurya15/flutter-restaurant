@@ -35,14 +35,19 @@ class PaymentView extends GetView<PaymentController> {
               children: [
                 const Icon(Icons.timer, color: Colors.white, size: 40),
                 const SizedBox(height: 8),
-                const Text(
-                  'Complete Payment Within',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
+                Obx(() {
+                  final isExpired = controller.countdownSeconds.value <= 0;
+                  return Text(
+                    isExpired ? 'Payment Time' : 'Complete Payment Within',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  );
+                }),
                 const SizedBox(height: 4),
                 Obx(
                   () => Text(
-                    controller.formattedTime,
+                    controller.countdownSeconds.value <= 0
+                        ? 'EXPIRED'
+                        : controller.formattedTime,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -78,13 +83,17 @@ class PaymentView extends GetView<PaymentController> {
             padding: const EdgeInsets.all(20),
             child: SizedBox(
               width: double.infinity,
-              child: Obx(
-                () => ElevatedButton(
-                  onPressed: controller.isProcessingPayment.value
+              child: Obx(() {
+                final isExpired = controller.countdownSeconds.value <= 0;
+
+                return ElevatedButton(
+                  onPressed: (controller.isProcessingPayment.value || isExpired)
                       ? null
                       : controller.processPayment,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: isExpired
+                        ? Colors.grey
+                        : Colors.green.shade700,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -105,14 +114,16 @@ class PaymentView extends GetView<PaymentController> {
                           ],
                         )
                       : Text(
-                          'Pay Rp.${controller.order.totalAmount.toInt()}',
+                          isExpired
+                              ? 'Payment Expired'
+                              : 'Pay Rp.${controller.order.totalAmount.toInt()}',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                ),
-              ),
+                );
+              }),
             ),
           ),
         ],
@@ -172,74 +183,118 @@ class PaymentView extends GetView<PaymentController> {
   }
 
   Widget _buildPaymentMethodsCard() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.payment, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                const Text(
-                  'Payment Method',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
+    return Obx(() {
+      final isExpired = controller.countdownSeconds.value <= 0;
+
+      return Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _getPaymentMethodColor().withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      _getPaymentMethodIcon(),
-                      color: _getPaymentMethodColor(),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getPaymentMethodName(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Selected payment method',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Icon(Icons.payment, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Payment Method',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isExpired ? Colors.grey.shade100 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isExpired
+                        ? Colors.grey.shade300
+                        : Colors.blue.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isExpired
+                            ? Colors.grey.withOpacity(0.1)
+                            : _getPaymentMethodColor().withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _getPaymentMethodIcon(),
+                        color: isExpired
+                            ? Colors.grey
+                            : _getPaymentMethodColor(),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getPaymentMethodName(),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isExpired ? Colors.grey : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            isExpired
+                                ? 'Payment method unavailable'
+                                : 'Selected payment method',
+                            style: TextStyle(
+                              color: isExpired
+                                  ? Colors.grey
+                                  : Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isExpired) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red.shade600, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Payment time has expired. Please place a new order.',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildInfoRow(String label, String value) {

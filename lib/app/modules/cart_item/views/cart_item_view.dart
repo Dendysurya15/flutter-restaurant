@@ -18,7 +18,7 @@ class CartItemView extends GetView<CartItemController> {
             children: [
               Text(storeName, style: const TextStyle(fontSize: 18)),
               const Text(
-                'Review your order',
+                'Take Order And Pay',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
               ),
             ],
@@ -739,7 +739,7 @@ class CartItemView extends GetView<CartItemController> {
                 ),
               ),
               child: const Text(
-                'Continue Order',
+                'Take Order & Pay',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),

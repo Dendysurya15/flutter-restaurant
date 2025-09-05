@@ -20,7 +20,7 @@ import 'package:toastification/toastification.dart';
 class CartItemController extends GetxController {
   final CartService cartService = Get.find<CartService>();
   final MenuService menuService = Get.find<MenuService>();
-
+  bool get mounted => !isClosed;
   // Initialize services
   late OrderService orderService;
   late PaymentService paymentService;
@@ -28,7 +28,87 @@ class CartItemController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Initialize services
+
+    instructionsController.addListener(() {
+      specialInstructions.value = instructionsController.text;
+    });
+
+    ever(selectedOrderType, (_) => _updateAvailablePaymentMethods());
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // Only this one
+    _initializeEverything();
+  }
+
+  // Remove _initializeData() method completely
+  // Keep only _initializeEverything()
+
+  Future<void> _initializeEverything() async {
+    if (!mounted) return; // Safety check
+
+    isLoadingData.value = true;
+
+    try {
+      // Force service initialization
+      orderService = Get.find<OrderService>();
+      paymentService = Get.find<PaymentService>();
+
+      // Load user first
+      await loadUserInfo();
+
+      // Then cart data
+      final cartItems = cartService.cartItems;
+      if (cartItems.isNotEmpty) {
+        final storeId = cartItems.first.storeId;
+
+        await loadStoreInfo(storeId);
+        await loadMenuItems(storeId, cartItems);
+
+        // Force update payment methods with a small delay
+        await Future.delayed(const Duration(milliseconds: 100));
+        _updateAvailablePaymentMethods();
+      }
+    } catch (e) {
+      print('Error in initialization: $e');
+    } finally {
+      if (mounted) {
+        isLoadingData.value = false;
+      }
+    }
+  }
+
+  Future<void> _initializeData() async {
+    isLoadingData.value = true;
+
+    try {
+      // Ensure services are available
+      if (!Get.isRegistered<OrderService>()) {
+        Get.put(OrderService());
+      }
+      if (!Get.isRegistered<PaymentService>()) {
+        Get.put(PaymentService());
+      }
+
+      orderService = Get.find<OrderService>();
+      paymentService = Get.find<PaymentService>();
+
+      // Load everything sequentially
+      await loadUserInfo();
+      await loadCartData();
+    } catch (e) {
+      print('Error initializing data: $e');
+    } finally {
+      isLoadingData.value = false;
+    }
+  }
+
+  Future<void> _ensureServicesInitialized() async {
+    // Wait a bit for services to be registered
+    await Future.delayed(const Duration(milliseconds: 100));
+
     if (!Get.isRegistered<OrderService>()) {
       Get.put(OrderService());
     }
@@ -38,16 +118,6 @@ class CartItemController extends GetxController {
 
     orderService = Get.find<OrderService>();
     paymentService = Get.find<PaymentService>();
-
-    loadCartData();
-    loadUserInfo();
-
-    instructionsController.addListener(() {
-      specialInstructions.value = instructionsController.text;
-    });
-
-    // Listen to order type changes to update payment methods
-    ever(selectedOrderType, (_) => _updateAvailablePaymentMethods());
   }
 
   // Order type selection
@@ -81,25 +151,18 @@ class CartItemController extends GetxController {
   final isLoadingData = true.obs;
 
   void _updateAvailablePaymentMethods() {
-    print(
-      '🔍 Updating payment methods for order type: ${selectedOrderType.value}',
-    );
+    if (!mounted || paymentService == null) return;
 
-    availablePaymentMethods.value = paymentService.getAvailablePaymentMethods(
-      selectedOrderType.value,
-    );
+    try {
+      availablePaymentMethods.value = paymentService.getAvailablePaymentMethods(
+        selectedOrderType.value,
+      );
 
-    print('📋 Available methods count: ${availablePaymentMethods.length}');
-    availablePaymentMethods.forEach((method) {
-      print('   - ${method.name} (${method.id})');
-    });
-
-    // Set default payment method (first available)
-    if (availablePaymentMethods.isNotEmpty) {
-      selectedPaymentMethod.value = availablePaymentMethods.first;
-      print('✅ Selected default method: ${selectedPaymentMethod.value?.name}');
-    } else {
-      print('❌ No payment methods available!');
+      if (availablePaymentMethods.isNotEmpty) {
+        selectedPaymentMethod.value = availablePaymentMethods.first;
+      }
+    } catch (e) {
+      print('Error updating payment methods: $e');
     }
   }
 
@@ -109,36 +172,25 @@ class CartItemController extends GetxController {
     super.onClose();
   }
 
-  void loadCartData() async {
+  Future<void> loadCartData() async {
     try {
-      isLoadingData.value = true;
       final cartItems = cartService.cartItems;
 
       if (cartItems.isNotEmpty) {
         final storeId = cartItems.first.storeId;
 
-        print('🔄 Starting to load cart data...');
-
-        // Load store info and menu items in parallel and WAIT for both
         await Future.wait([
           loadStoreInfo(storeId),
           loadMenuItems(storeId, cartItems),
         ]);
 
-        print('✅ All data loaded, updating payment methods...');
-
-        // Update payment methods after loading store info
         _updateAvailablePaymentMethods();
-
-        print('✅ Cart data loading complete!');
       }
     } catch (e) {
-      print('❌ Error loading cart data: $e');
+      print('Error loading cart data: $e');
       Get.snackbar('Error', 'Failed to load cart data: $e');
-    } finally {
-      // Only set loading to false after EVERYTHING is complete
-      isLoadingData.value = false;
     }
+    // Remove the finally block that sets isLoadingData.value = false
   }
 
   Future<void> loadStoreInfo(String storeId) async {
@@ -189,7 +241,7 @@ class CartItemController extends GetxController {
     }
   }
 
-  void loadUserInfo() async {
+  Future<void> loadUserInfo() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {

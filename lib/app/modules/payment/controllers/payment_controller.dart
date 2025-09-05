@@ -1,3 +1,4 @@
+// app/modules/payment/controllers/payment_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:restaurant/app/data/models/order_model.dart';
@@ -5,74 +6,77 @@ import 'package:restaurant/app/data/models/payment_model.dart';
 import 'package:restaurant/app/helper/toast_helper.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:restaurant/app/services/payment_service.dart';
+import 'package:restaurant/app/services/payment_timer_service.dart';
 import 'package:toastification/toastification.dart';
-import 'dart:async';
 
-// payment_controller.dart
 class PaymentController extends GetxController {
   final OrderModel order;
   final PaymentModel payment;
   final PaymentService paymentService = Get.find<PaymentService>();
+  final PaymentTimerService timerService = Get.find<PaymentTimerService>();
 
   PaymentController({required this.order, required this.payment});
 
-  // Countdown timer (15 minutes = 900 seconds)
-  final countdownSeconds = 900.obs;
-  final isExpired = false.obs;
+  // Timer observables - now linked to global service
   final isProcessingPayment = false.obs;
-  Timer? _timer;
+  PaymentTimerData? timerData;
 
   @override
   void onInit() {
     super.onInit();
-    startCountdown();
+
+    // Get timer data from arguments or global service
+    final args = Get.arguments as Map<String, dynamic>?;
+    timerData = args?['timer_data'] ?? timerService.getPaymentTimer(payment.id);
+
+    // Check if payment is already expired when opening the page
+    final timeSinceOrderCreated = DateTime.now().difference(order.createdAt);
+    final actualRemainingSeconds = 900 - timeSinceOrderCreated.inSeconds;
+
+    if (actualRemainingSeconds <= 0) {
+      // Payment is expired - don't start timer
+      timerData = null;
+    } else if (timerData == null) {
+      // Start timer with actual remaining time
+      timerService.startPaymentTimer(
+        order: order,
+        payment: payment,
+        durationInSeconds: actualRemainingSeconds,
+      );
+      timerData = timerService.getPaymentTimer(payment.id);
+    }
   }
 
   @override
   void onClose() {
-    _timer?.cancel();
+    // Don't cancel timer here - let it continue globally
     super.onClose();
   }
 
-  void startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (countdownSeconds.value > 0) {
-        countdownSeconds.value--;
-      } else {
-        timer.cancel();
-        isExpired.value = true;
-        handlePaymentExpired();
-      }
-    });
-  }
+  // Getters that reference the global timer
+  RxInt get countdownSeconds => timerData?.remainingSeconds ?? 0.obs;
+  RxBool get isExpired => timerData?.isExpired ?? false.obs;
 
-  void handlePaymentExpired() {
-    ToastHelper.showToast(
-      context: Get.context!,
-      title: 'Payment Expired',
-      description: 'Your payment time has expired. Please try again.',
-      type: ToastificationType.error,
-    );
-
-    // Navigate back to cart or home
-    Get.offAllNamed(Routes.HOME);
+  String get formattedTime {
+    if (timerData == null) return '00:00';
+    return timerService.formatTime(timerData!.remainingSeconds.value);
   }
 
   void showExitDialog() {
     Get.dialog(
       AlertDialog(
-        title: const Text('Cancel Payment?'),
+        title: const Text('Leave Payment?'),
         content: const Text(
-          'Your order will be cancelled if you leave this page.',
+          'Your payment timer will continue running. You can return to complete payment from your order history.',
         ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Stay')),
           TextButton(
             onPressed: () {
               Get.back(); // Close dialog
-              Get.offAllNamed('/home'); // Go to home
+              Get.back(); // Go back to previous page
             },
-            child: const Text('Leave', style: TextStyle(color: Colors.red)),
+            child: const Text('Leave', style: TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -91,7 +95,8 @@ class PaymentController extends GetxController {
       );
 
       if (result['success']) {
-        _timer?.cancel();
+        // Stop the timer since payment is successful
+        timerService.stopPaymentTimer(payment.id);
 
         ToastHelper.showToast(
           context: Get.context!,
@@ -100,7 +105,8 @@ class PaymentController extends GetxController {
           type: ToastificationType.success,
         );
 
-        Get.offAllNamed('/orders');
+        // Navigate to order history or success page
+        Get.offAllNamed(Routes.HOME);
       } else {
         ToastHelper.showToast(
           context: Get.context!,
@@ -109,14 +115,66 @@ class PaymentController extends GetxController {
           type: ToastificationType.error,
         );
       }
+    } catch (e) {
+      ToastHelper.showToast(
+        context: Get.context!,
+        title: 'Payment Error',
+        description:
+            'An error occurred while processing payment. Please try again.',
+        type: ToastificationType.error,
+      );
     } finally {
       isProcessingPayment.value = false;
     }
   }
 
-  String get formattedTime {
-    final minutes = countdownSeconds.value ~/ 60;
-    final seconds = countdownSeconds.value % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  void cancelPayment() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Cancel Payment?'),
+        content: const Text(
+          'This will cancel your order and you will need to place a new order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Keep Order'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back(); // Close dialog
+
+              try {
+                // Update order status to cancelled
+                await paymentService.updateOrderStatus(order.id, 'cancelled');
+
+                // Stop timer
+                timerService.stopPaymentTimer(payment.id);
+
+                ToastHelper.showToast(
+                  context: Get.context!,
+                  title: 'Order Cancelled',
+                  description: 'Your order has been cancelled.',
+                  type: ToastificationType.info,
+                );
+
+                Get.offAllNamed(Routes.HOME);
+              } catch (e) {
+                ToastHelper.showToast(
+                  context: Get.context!,
+                  title: 'Error',
+                  description: 'Failed to cancel order. Please try again.',
+                  type: ToastificationType.error,
+                );
+              }
+            },
+            child: const Text(
+              'Cancel Order',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

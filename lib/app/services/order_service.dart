@@ -48,7 +48,7 @@ class OrderService extends GetxService {
         'subtotal': subtotal,
         'delivery_fee': deliveryFee,
         'total_amount': totalAmount,
-        'payment_method': paymentMethod == 'cash' ? 'offline' : 'online',
+        'payment_method': paymentMethod,
         'payment_status': paymentMethod == 'cash' ? 'pending' : 'pending',
         'special_instructions': specialInstructions,
         'created_at': DateTime.now().toIso8601String(),
@@ -86,14 +86,11 @@ class OrderService extends GetxService {
       }
 
       // 3. Create payment record
-      // 3. Create payment record
       final paymentData = {
         'id': _uuid.v4(),
         'order_id': orderId,
         'amount': totalAmount,
-        'payment_method': _mapPaymentMethodForDatabase(
-          paymentMethod,
-        ), // Fix this line
+        'payment_method': _mapPaymentMethodForDatabase(paymentMethod),
         'payment_gateway': paymentMethod == 'cash' ? null : 'midtrans',
         'status': 'pending',
         'created_at': DateTime.now().toIso8601String(),
@@ -121,24 +118,8 @@ class OrderService extends GetxService {
   }
 
   String _mapPaymentMethodForDatabase(String paymentMethod) {
-    // Map UI payment method IDs to database-allowed values
-    switch (paymentMethod) {
-      case 'cash':
-        return 'cash'; // or 'offline'
-      case 'gopay':
-      case 'dana':
-      case 'ovo':
-      case 'shopeepay':
-      case 'credit_card':
-      case 'bca_va':
-      case 'bni_va':
-      case 'bri_va':
-      case 'indomaret':
-      case 'alfamart':
-        return 'online'; // or whatever your database expects
-      default:
-        return 'online';
-    }
+    // Store the actual payment method, not just 'online'
+    return paymentMethod;
   }
 
   // Update payment status
