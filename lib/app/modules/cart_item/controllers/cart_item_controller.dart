@@ -18,249 +18,284 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:toastification/toastification.dart';
 
 class CartItemController extends GetxController {
-  final CartService cartService = Get.find<CartService>();
-  final MenuService menuService = Get.find<MenuService>();
+  // Lazy service getters - prevent race conditions
+  CartService get cartService => Get.find<CartService>();
+  MenuService get menuService => Get.find<MenuService>();
+  OrderService get orderService => Get.find<OrderService>();
+  PaymentService get paymentService => Get.find<PaymentService>();
+
+  // State management
+  final isLoadingData = true.obs;
+  final isProcessingOrder = false.obs;
+  final hasError = false.obs;
+  final errorMessage = ''.obs;
+
+  // Data observables
+  final selectedOrderType = 'dine_in'.obs;
+  final Rx<StoreModel?> storeInfo = Rx<StoreModel?>(null);
+  final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
+  final RxMap<String, MenuItemModel> menuItems = <String, MenuItemModel>{}.obs;
+  final deliveryAddress = ''.obs;
+  final isLoadingLocation = false.obs;
+  final specialInstructions = ''.obs;
+  final TextEditingController instructionsController = TextEditingController();
+  final Rx<PaymentMethodOption?> selectedPaymentMethod =
+      Rx<PaymentMethodOption?>(null);
+  final RxList<PaymentMethodOption> availablePaymentMethods =
+      <PaymentMethodOption>[].obs;
 
   bool get mounted => !isClosed;
-
-  // Initialize services
-  late OrderService orderService;
-  late PaymentService paymentService;
-
-  // Add initialization tracking
-  final isInitialized = false.obs;
-  bool _isInitializing = false;
 
   @override
   void onInit() {
     super.onInit();
+    print('🚀 CartItemController.onInit() - Setting up listeners');
 
     instructionsController.addListener(() {
       specialInstructions.value = instructionsController.text;
     });
 
-    // Only listen to order type changes AFTER initialization
     ever(selectedOrderType, (_) {
-      if (isInitialized.value) {
-        _updateAvailablePaymentMethods();
-      }
+      print('📝 Order type changed to: ${selectedOrderType.value}');
+      _updatePaymentMethods();
     });
   }
 
   @override
   void onReady() {
     super.onReady();
-    // Use WidgetsBinding to ensure UI is ready
+    print('🎯 CartItemController.onReady() - Starting data load');
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeEverything();
+      loadCartData();
     });
   }
 
-  Future<void> _initializeEverything() async {
-    if (!mounted || _isInitializing) return;
+  Future<void> loadCartData() async {
+    if (!mounted) return;
 
-    _isInitializing = true;
+    print('🔄 Starting cart data load...');
     isLoadingData.value = true;
-    isInitialized.value = false;
+    hasError.value = false;
+    errorMessage.value = '';
 
     try {
-      // Force service initialization first
-      orderService = Get.find<OrderService>();
-      paymentService = Get.find<PaymentService>();
-
-      // Load user info first
-      await loadUserInfo();
-
-      // Then load cart-related data
+      // Check cart items first
       final cartItems = cartService.cartItems;
-      if (cartItems.isNotEmpty) {
-        final storeId = cartItems.first.storeId;
+      print('📦 Cart items count: ${cartItems.length}');
 
-        // Load store and menu items in parallel
-        await Future.wait([
-          loadStoreInfo(storeId),
-          loadMenuItems(storeId, cartItems),
-        ]);
-
-        // Update payment methods after everything is loaded
-        _updateAvailablePaymentMethods();
+      if (cartItems.isEmpty) {
+        print('⚠️ Cart is empty, finishing load');
+        return;
       }
 
-      // Mark as initialized
-      isInitialized.value = true;
+      // Load user info
+      await _loadUserInfo();
+
+      // Load store and menu data in parallel
+      final storeId = cartItems.first.storeId;
+      print('🏪 Loading data for store: $storeId');
+
+      await Future.wait([
+        _loadStoreInfo(storeId),
+        _loadMenuItems(storeId, cartItems),
+      ]);
+
+      // Update payment methods
+      _updatePaymentMethods();
+
+      print('✅ Cart data load completed successfully');
     } catch (e) {
-      print('Error in initialization: $e');
-      Get.snackbar('Error', 'Failed to initialize cart: $e');
+      print('❌ Error loading cart data: $e');
+      hasError.value = true;
+      errorMessage.value = 'Failed to load cart data: $e';
     } finally {
       if (mounted) {
         isLoadingData.value = false;
-        _isInitializing = false;
       }
     }
   }
 
-  // Order type selection
-  final selectedOrderType = 'dine_in'.obs;
+  Future<void> _loadUserInfo() async {
+    print('👤 Loading user information...');
 
-  // Store information
-  final Rx<StoreModel?> storeInfo = Rx<StoreModel?>(null);
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
 
-  // User information
-  final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
+    if (!mounted) return;
 
-  // Menu items lookup
-  final RxMap<String, MenuItemModel> menuItems = <String, MenuItemModel>{}.obs;
+    currentUser.value = UserModel(
+      id: user.id,
+      email: user.email ?? '',
+      role: 'customer',
+      fullName: user.userMetadata?['full_name'] ?? 'Customer',
+      phone: user.userMetadata?['phone'] ?? '+628123456789',
+      address: user.userMetadata?['address'],
+      createdAt: DateTime.parse(user.createdAt),
+      updatedAt: DateTime.now(),
+    );
 
-  // Delivery address
-  final deliveryAddress = ''.obs;
-  final isLoadingLocation = false.obs;
+    if (currentUser.value?.address != null) {
+      deliveryAddress.value = currentUser.value!.address!;
+    }
 
-  // Special instructions
-  final specialInstructions = ''.obs;
-  final TextEditingController instructionsController = TextEditingController();
+    print('✅ User info loaded: ${currentUser.value?.fullName}');
+  }
 
-  // Payment method selection
-  final Rx<PaymentMethodOption?> selectedPaymentMethod =
-      Rx<PaymentMethodOption?>(null);
-  final RxList<PaymentMethodOption> availablePaymentMethods =
-      <PaymentMethodOption>[].obs;
+  Future<void> _loadStoreInfo(String storeId) async {
+    print('🏪 Loading store info for: $storeId');
 
-  // Loading states
-  final isProcessingOrder = false.obs;
-  final isLoadingData = true.obs;
+    final response = await StoreService.supabase
+        .from('stores')
+        .select()
+        .eq('id', storeId)
+        .single()
+        .timeout(const Duration(seconds: 10));
 
-  void _updateAvailablePaymentMethods() {
-    if (!mounted || paymentService == null) return;
+    if (!mounted) return;
+
+    storeInfo.value = StoreModel.fromJson(response);
+    print('✅ Store info loaded: ${storeInfo.value?.name}');
+  }
+
+  Future<void> _loadMenuItems(
+    String storeId,
+    List<CartItemModel> cartItems,
+  ) async {
+    print('📋 Loading menu items...');
+
+    final menuItemIds = cartItems.map((item) => item.menuItemId).toList();
+    print('🔍 Looking for menu items: $menuItemIds');
+
+    if (menuItemIds.isEmpty) {
+      print('⚠️ No menu item IDs to load');
+      return;
+    }
+
+    final response = await StoreService.supabase
+        .from('menu_items')
+        .select()
+        .filter('id', 'in', '(${menuItemIds.join(',')})')
+        .timeout(const Duration(seconds: 10));
+
+    print('📋 Retrieved ${response.length} menu items from database');
+
+    if (!mounted) return;
+
+    final Map<String, MenuItemModel> newMenuItems = {};
+
+    for (final json in response) {
+      try {
+        final menuItem = MenuItemModel.fromJson(json);
+        newMenuItems[menuItem.id] = menuItem;
+        print('✅ Loaded menu item: ${menuItem.name} (${menuItem.id})');
+      } catch (e) {
+        print('❌ Error parsing menu item: $e');
+      }
+    }
+
+    menuItems.value = newMenuItems;
+
+    // Check for missing items
+    final missingItems = menuItemIds
+        .where((id) => !newMenuItems.containsKey(id))
+        .toList();
+    if (missingItems.isNotEmpty) {
+      print('⚠️ Missing menu items: $missingItems');
+    }
+
+    print('✅ Menu items loading completed');
+  }
+
+  void _updatePaymentMethods() {
+    if (!mounted) return;
 
     try {
+      print('💳 Updating payment methods for: ${selectedOrderType.value}');
+
       final methods = paymentService.getAvailablePaymentMethods(
         selectedOrderType.value,
       );
 
       availablePaymentMethods.value = methods;
+      print('✅ Found ${methods.length} payment methods');
 
-      // Only set selected method if none is selected or if current selection is not available
       if (selectedPaymentMethod.value == null ||
           !methods.any((m) => m.id == selectedPaymentMethod.value!.id)) {
         if (methods.isNotEmpty) {
           selectedPaymentMethod.value = methods.first;
+          print('💳 Set default payment method: ${methods.first.name}');
         }
       }
     } catch (e) {
-      print('Error updating payment methods: $e');
+      print('❌ Error updating payment methods: $e');
     }
+  }
+
+  Future<void> retryLoad() async {
+    print('🔄 Retrying cart data load...');
+    await loadCartData();
   }
 
   @override
   void onClose() {
+    print('🔄 CartItemController.onClose()');
     instructionsController.dispose();
     super.onClose();
   }
 
-  Future<void> loadStoreInfo(String storeId) async {
+  // Calculations
+  double get subtotal {
     try {
-      final response = await StoreService.supabase
-          .from('stores')
-          .select()
-          .eq('id', storeId)
-          .single();
-
-      if (mounted) {
-        storeInfo.value = StoreModel.fromJson(response);
-      }
+      final cartItems = cartService.cartItems;
+      return cartItems.fold(
+        0,
+        (sum, item) => sum + (item.quantity * item.price),
+      );
     } catch (e) {
-      if (mounted) {
-        Get.snackbar('Error', 'Failed to load store information: $e');
-      }
+      print('❌ Error calculating subtotal: $e');
+      return 0;
     }
   }
 
-  Future<void> loadMenuItems(
-    String storeId,
-    List<CartItemModel> cartItems,
-  ) async {
-    try {
-      final menuItemIds = cartItems.map((item) => item.menuItemId).toList();
-      print('Loading menu items for IDs: $menuItemIds');
-
-      final response = await StoreService.supabase
-          .from('menu_items')
-          .select()
-          .filter('id', 'in', '(${menuItemIds.join(',')})');
-
-      print('Menu items response: ${response.length} items');
-
-      if (mounted) {
-        final Map<String, MenuItemModel> newMenuItems = {};
-
-        for (final json in response) {
-          final menuItem = MenuItemModel.fromJson(json);
-          newMenuItems[menuItem.id] = menuItem;
-          print('Loaded menu item: ${menuItem.name} (${menuItem.id})');
-        }
-
-        menuItems.value = newMenuItems;
-
-        // Check for missing items
-        for (final cartItem in cartItems) {
-          if (!menuItems.containsKey(cartItem.menuItemId)) {
-            print('WARNING: Menu item not found: ${cartItem.menuItemId}');
-          }
-        }
-      }
-    } catch (e) {
-      print('Error loading menu items: $e');
+  double get deliveryFee {
+    if (selectedOrderType.value == 'delivery') {
+      return storeInfo.value?.deliveryFee ?? 5000;
     }
+    return 0;
   }
 
-  Future<void> loadUserInfo() async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null && mounted) {
-        currentUser.value = UserModel(
-          id: user.id,
-          email: user.email ?? '',
-          role: 'customer',
-          fullName: user.userMetadata?['full_name'] ?? 'Customer',
-          phone: user.userMetadata?['phone'] ?? '+628123456789',
-          address: user.userMetadata?['address'],
-          createdAt: DateTime.parse(user.createdAt),
-          updatedAt: DateTime.now(),
-        );
+  double get totalAmount => subtotal + deliveryFee;
 
-        if (currentUser.value?.address != null) {
-          deliveryAddress.value = currentUser.value!.address!;
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Get.snackbar('Error', 'Failed to load user information');
-      }
-    }
-  }
-
+  // User actions
   void selectOrderType(String type) {
+    print('📝 Selecting order type: $type');
     selectedOrderType.value = type;
   }
 
   void selectPaymentMethod(PaymentMethodOption method) {
+    print('💳 Selecting payment method: ${method.name}');
     selectedPaymentMethod.value = method;
   }
 
   void getCurrentLocation() async {
+    print('📍 Getting current location...');
     isLoadingLocation.value = true;
 
     try {
-      // TODO: Implement actual location service
       await Future.delayed(const Duration(seconds: 2));
       deliveryAddress.value = "Current Location: 123 Street, City, State";
 
+      print('✅ Location found: ${deliveryAddress.value}');
       Get.snackbar(
         'Location Found',
         'Address updated successfully',
         backgroundColor: Colors.green.shade100,
       );
     } catch (e) {
+      print('❌ Error getting location: $e');
       Get.snackbar('Error', 'Failed to get current location');
     } finally {
       isLoadingLocation.value = false;
@@ -312,17 +347,21 @@ class CartItemController extends GetxController {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: getCurrentLocation,
-                    icon: isLoadingLocation.value
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.my_location),
-                    label: Text(
-                      isLoadingLocation.value
-                          ? 'Getting Location...'
-                          : 'Use Current Location',
+                    icon: Obx(
+                      () => isLoadingLocation.value
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location),
+                    ),
+                    label: Obx(
+                      () => Text(
+                        isLoadingLocation.value
+                            ? 'Getting Location...'
+                            : 'Use Current Location',
+                      ),
                     ),
                   ),
                 ),
@@ -494,31 +533,26 @@ class CartItemController extends GetxController {
     );
   }
 
-  double get subtotal {
-    final cartItems = cartService.cartItems;
-    return cartItems.fold(0, (sum, item) => sum + (item.quantity * item.price));
-  }
-
-  double get deliveryFee {
-    if (selectedOrderType.value == 'delivery') {
-      return storeInfo.value?.deliveryFee ?? 5000;
-    }
-    return 0;
-  }
-
-  double get totalAmount {
-    return subtotal + deliveryFee;
-  }
-
   void showConfirmationModal() {
+    if (hasError.value) {
+      Get.snackbar('Error', 'Please reload the cart data before placing order');
+      return;
+    }
+
+    if (isLoadingData.value) {
+      Get.snackbar('Please Wait', 'Cart is still loading...');
+      return;
+    }
+
+    print('🎯 Showing order confirmation modal');
     ModalAlert.showConfirmation(
       title: 'Confirm Order',
       subtitle: 'Are you sure you want to place this order?',
       primaryButtonText: 'Yes, Place Order',
       secondaryButtonText: 'Cancel',
       onConfirm: () {
-        Get.back(); // Close modal
-        processOrder(); // Process the order
+        Get.back();
+        processOrder();
       },
       isProcessing: isProcessingOrder.value,
     );
@@ -526,13 +560,12 @@ class CartItemController extends GetxController {
 
   void processOrder() async {
     if (isProcessingOrder.value) return;
-
     if (!_validateOrder()) return;
 
+    print('🚀 Starting order processing...');
     isProcessingOrder.value = true;
 
     try {
-      // Create order with payment in Supabase
       final result = await orderService.createOrderWithPayment(
         customerId: currentUser.value!.id,
         storeId: storeInfo.value!.id,
@@ -556,7 +589,7 @@ class CartItemController extends GetxController {
         final payment = result['payment'] as PaymentModel;
         final order = result['order'] as OrderModel;
 
-        // Clear cart since order is created in database
+        print('✅ Order created successfully: ${order.id}');
         await cartService.clearCart();
 
         ToastHelper.showToast(
@@ -566,19 +599,12 @@ class CartItemController extends GetxController {
           type: ToastificationType.success,
         );
 
-        // Navigate to payment countdown view
         Get.offNamed(
           Routes.PAYMENT,
           arguments: {'order': order, 'payment': payment},
         );
       } else {
-        print(result['message'] ?? 'Unknown error');
-        ToastHelper.showToast(
-          context: Get.context!,
-          title: 'Order Failed',
-          description: result['message'],
-          type: ToastificationType.error,
-        );
+        throw Exception(result['message'] ?? 'Unknown error');
       }
     } catch (e) {
       print('❌ Order processing error: $e');
@@ -611,21 +637,8 @@ class CartItemController extends GetxController {
       return false;
     }
 
-    if (subtotal < (storeInfo.value?.minimumOrder ?? 0)) {
-      Get.snackbar(
-        'Error',
-        'Minimum order amount is Rp.${storeInfo.value?.minimumOrder ?? 0}',
-      );
-      return false;
-    }
-
-    if (currentUser.value == null) {
-      Get.snackbar('Error', 'User information not available');
-      return false;
-    }
-
-    if (storeInfo.value == null) {
-      Get.snackbar('Error', 'Store information not available');
+    if (currentUser.value == null || storeInfo.value == null) {
+      Get.snackbar('Error', 'Required information not loaded');
       return false;
     }
 
