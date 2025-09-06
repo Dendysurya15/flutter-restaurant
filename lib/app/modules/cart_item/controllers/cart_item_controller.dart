@@ -18,11 +18,57 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:toastification/toastification.dart';
 
 class CartItemController extends GetxController {
-  // Lazy service getters - prevent race conditions
-  CartService get cartService => Get.find<CartService>();
-  MenuService get menuService => Get.find<MenuService>();
-  OrderService get orderService => Get.find<OrderService>();
-  PaymentService get paymentService => Get.find<PaymentService>();
+  static int _instanceCount = 0;
+  final int _instanceId = ++_instanceCount;
+
+  // Direct service access - since they're permanent too
+  CartService get cartService {
+    print('🔧 [$_instanceId] Getting CartService...');
+    try {
+      final service = Get.find<CartService>();
+      print('✅ [$_instanceId] CartService found: ${service.hashCode}');
+      return service;
+    } catch (e) {
+      print('❌ [$_instanceId] CartService not found: $e');
+      rethrow;
+    }
+  }
+
+  MenuService get menuService {
+    print('🔧 [$_instanceId] Getting MenuService...');
+    try {
+      final service = Get.find<MenuService>();
+      print('✅ [$_instanceId] MenuService found: ${service.hashCode}');
+      return service;
+    } catch (e) {
+      print('❌ [$_instanceId] MenuService not found: $e');
+      rethrow;
+    }
+  }
+
+  OrderService get orderService {
+    print('🔧 [$_instanceId] Getting OrderService...');
+    try {
+      final service = Get.find<OrderService>();
+      print('✅ [$_instanceId] OrderService found: ${service.hashCode}');
+      return service;
+    } catch (e) {
+      print('❌ [$_instanceId] OrderService not found: $e');
+      rethrow;
+    }
+  }
+
+  PaymentService get paymentService {
+    print('🔧 [$_instanceId] Getting PaymentService...');
+    try {
+      final service = Get.find<PaymentService>();
+      print('✅ [$_instanceId] PaymentService found: ${service.hashCode}');
+      return service;
+    } catch (e) {
+      print('❌ [$_instanceId] PaymentService not found: $e');
+      rethrow;
+    }
+  }
 
   // State management
   final isLoadingData = true.obs;
@@ -49,32 +95,100 @@ class CartItemController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('🚀 CartItemController.onInit() - Setting up listeners');
+    print(
+      '🚀 [$_instanceId] CartItemController.onInit() - PERMANENT CONTROLLER CREATED',
+    );
+    print('📊 [$_instanceId] Current controller instances: $_instanceCount');
 
+    // Log initial state
+    _logControllerState('onInit');
+
+    // Setup listeners
     instructionsController.addListener(() {
+      print(
+        '📝 [$_instanceId] Instructions changed: ${instructionsController.text}',
+      );
       specialInstructions.value = instructionsController.text;
     });
 
-    ever(selectedOrderType, (_) {
-      print('📝 Order type changed to: ${selectedOrderType.value}');
+    ever(selectedOrderType, (String orderType) {
+      print('📦 [$_instanceId] Order type changed to: $orderType');
       _updatePaymentMethods();
     });
+
+    // Listen to cart changes from CartService
+    _setupCartListener();
+  }
+
+  void _setupCartListener() {
+    print('👂 [$_instanceId] Setting up cart listener...');
+    try {
+      // This will trigger whenever cart items change
+      ever(cartService.cartItems, (items) {
+        print('🛒 [$_instanceId] Cart items changed: ${items.length} items');
+        for (final item in items) {
+          print('   - ${item.menuItemId}: ${item.quantity}x at ${item.price}');
+        }
+
+        // If we're currently on the cart page and cart becomes empty, we might want to go back
+        if (items.isEmpty && Get.currentRoute == Routes.CART_ITEM) {
+          print('⚠️ [$_instanceId] Cart became empty while on cart page');
+        }
+      });
+    } catch (e) {
+      print('❌ [$_instanceId] Error setting up cart listener: $e');
+    }
   }
 
   @override
   void onReady() {
     super.onReady();
-    print('🎯 CartItemController.onReady() - Starting data load');
+    print('🎯 [$_instanceId] CartItemController.onReady() - Controller ready');
+    _logControllerState('onReady');
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      loadCartData();
-    });
+  // This method should be called when navigating to cart page
+  Future<void> initializeForCartPage() async {
+    print(
+      '🔄 [$_instanceId] initializeForCartPage() - Starting cart page initialization',
+    );
+    _logControllerState('initializeForCartPage - START');
+
+    // Reset state for fresh load
+    _resetState();
+
+    // Load cart data
+    await loadCartData();
+
+    _logControllerState('initializeForCartPage - END');
+  }
+
+  void _resetState() {
+    print('🔄 [$_instanceId] Resetting controller state...');
+    isLoadingData.value = true;
+    isProcessingOrder.value = false;
+    hasError.value = false;
+    errorMessage.value = '';
+    storeInfo.value = null;
+    currentUser.value = null;
+    menuItems.clear();
+    deliveryAddress.value = '';
+    isLoadingLocation.value = false;
+    selectedPaymentMethod.value = null;
+    availablePaymentMethods.clear();
+    // Note: Don't reset specialInstructions and selectedOrderType as user might want to keep them
+    print('✅ [$_instanceId] State reset completed');
   }
 
   Future<void> loadCartData() async {
-    if (!mounted) return;
+    if (!mounted) {
+      print('⚠️ [$_instanceId] Controller not mounted, skipping loadCartData');
+      return;
+    }
 
-    print('🔄 Starting cart data load...');
+    print('🔄 [$_instanceId] Starting cart data load...');
+    _logControllerState('loadCartData - START');
+
     isLoadingData.value = true;
     hasError.value = false;
     errorMessage.value = '';
@@ -82,19 +196,28 @@ class CartItemController extends GetxController {
     try {
       // Check cart items first
       final cartItems = cartService.cartItems;
-      print('📦 Cart items count: ${cartItems.length}');
+      print('📦 [$_instanceId] Cart items count: ${cartItems.length}');
+
+      for (int i = 0; i < cartItems.length; i++) {
+        final item = cartItems[i];
+        print(
+          '   [$i] Item: ${item.menuItemId} | Qty: ${item.quantity} | Price: ${item.price} | Store: ${item.storeId}',
+        );
+      }
 
       if (cartItems.isEmpty) {
-        print('⚠️ Cart is empty, finishing load');
+        print('⚠️ [$_instanceId] Cart is empty, finishing load');
+        isLoadingData.value = false;
         return;
       }
 
       // Load user info
+      print('👤 [$_instanceId] Loading user info...');
       await _loadUserInfo();
 
       // Load store and menu data in parallel
       final storeId = cartItems.first.storeId;
-      print('🏪 Loading data for store: $storeId');
+      print('🏪 [$_instanceId] Loading data for store: $storeId');
 
       await Future.wait([
         _loadStoreInfo(storeId),
@@ -102,29 +225,39 @@ class CartItemController extends GetxController {
       ]);
 
       // Update payment methods
+      print('💳 [$_instanceId] Updating payment methods...');
       _updatePaymentMethods();
 
-      print('✅ Cart data load completed successfully');
+      print('✅ [$_instanceId] Cart data load completed successfully');
+      _logControllerState('loadCartData - SUCCESS');
     } catch (e) {
-      print('❌ Error loading cart data: $e');
+      print('❌ [$_instanceId] Error loading cart data: $e');
+      print('📍 [$_instanceId] Stack trace: ${StackTrace.current}');
       hasError.value = true;
       errorMessage.value = 'Failed to load cart data: $e';
+      _logControllerState('loadCartData - ERROR');
     } finally {
       if (mounted) {
         isLoadingData.value = false;
+        print('🏁 [$_instanceId] Cart data loading finished');
+      } else {
+        print('⚠️ [$_instanceId] Controller was disposed during loading');
       }
     }
   }
 
   Future<void> _loadUserInfo() async {
-    print('👤 Loading user information...');
+    print('👤 [$_instanceId] Loading user information...');
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       throw Exception('No authenticated user found');
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      print('⚠️ [$_instanceId] Controller disposed during user info load');
+      return;
+    }
 
     currentUser.value = UserModel(
       id: user.id,
@@ -137,165 +270,270 @@ class CartItemController extends GetxController {
       updatedAt: DateTime.now(),
     );
 
+    print('✅ [$_instanceId] User info loaded:');
+    print('   - ID: ${currentUser.value?.id}');
+    print('   - Name: ${currentUser.value?.fullName}');
+    print('   - Phone: ${currentUser.value?.phone}');
+    print('   - Address: ${currentUser.value?.address}');
+
     if (currentUser.value?.address != null) {
       deliveryAddress.value = currentUser.value!.address!;
+      print('📍 [$_instanceId] Set delivery address: ${deliveryAddress.value}');
     }
-
-    print('✅ User info loaded: ${currentUser.value?.fullName}');
   }
 
   Future<void> _loadStoreInfo(String storeId) async {
-    print('🏪 Loading store info for: $storeId');
+    print('🏪 [$_instanceId] Loading store info for: $storeId');
 
-    final response = await StoreService.supabase
-        .from('stores')
-        .select()
-        .eq('id', storeId)
-        .single()
-        .timeout(const Duration(seconds: 10));
+    try {
+      final response = await StoreService.supabase
+          .from('stores')
+          .select()
+          .eq('id', storeId)
+          .single()
+          .timeout(const Duration(seconds: 10));
 
-    if (!mounted) return;
+      if (!mounted) {
+        print('⚠️ [$_instanceId] Controller disposed during store info load');
+        return;
+      }
 
-    storeInfo.value = StoreModel.fromJson(response);
-    print('✅ Store info loaded: ${storeInfo.value?.name}');
+      storeInfo.value = StoreModel.fromJson(response);
+      print('✅ [$_instanceId] Store info loaded:');
+      print('   - Name: ${storeInfo.value?.name}');
+      print('   - Category: ${storeInfo.value?.category}');
+      print('   - Delivery Available: ${storeInfo.value?.deliveryAvailable}');
+      print('   - Dine In Available: ${storeInfo.value?.dineInAvailable}');
+      print('   - Delivery Fee: ${storeInfo.value?.deliveryFee}');
+    } catch (e) {
+      print('❌ [$_instanceId] Error loading store info: $e');
+      rethrow;
+    }
   }
 
   Future<void> _loadMenuItems(
     String storeId,
     List<CartItemModel> cartItems,
   ) async {
-    print('📋 Loading menu items...');
+    print('📋 [$_instanceId] Loading menu items...');
 
     final menuItemIds = cartItems.map((item) => item.menuItemId).toList();
-    print('🔍 Looking for menu items: $menuItemIds');
+    print('🔍 [$_instanceId] Looking for menu items: $menuItemIds');
 
     if (menuItemIds.isEmpty) {
-      print('⚠️ No menu item IDs to load');
+      print('⚠️ [$_instanceId] No menu item IDs to load');
       return;
     }
 
-    final response = await StoreService.supabase
-        .from('menu_items')
-        .select()
-        .filter('id', 'in', '(${menuItemIds.join(',')})')
-        .timeout(const Duration(seconds: 10));
+    try {
+      final response = await StoreService.supabase
+          .from('menu_items')
+          .select()
+          .filter('id', 'in', '(${menuItemIds.join(',')})')
+          .timeout(const Duration(seconds: 10));
 
-    print('📋 Retrieved ${response.length} menu items from database');
+      print(
+        '📋 [$_instanceId] Retrieved ${response.length} menu items from database',
+      );
 
-    if (!mounted) return;
-
-    final Map<String, MenuItemModel> newMenuItems = {};
-
-    for (final json in response) {
-      try {
-        final menuItem = MenuItemModel.fromJson(json);
-        newMenuItems[menuItem.id] = menuItem;
-        print('✅ Loaded menu item: ${menuItem.name} (${menuItem.id})');
-      } catch (e) {
-        print('❌ Error parsing menu item: $e');
+      if (!mounted) {
+        print('⚠️ [$_instanceId] Controller disposed during menu items load');
+        return;
       }
+
+      final Map<String, MenuItemModel> newMenuItems = {};
+
+      for (final json in response) {
+        try {
+          final menuItem = MenuItemModel.fromJson(json);
+          newMenuItems[menuItem.id] = menuItem;
+          print(
+            '✅ [$_instanceId] Loaded menu item: ${menuItem.name} (${menuItem.id}) - Price: ${menuItem.price}',
+          );
+        } catch (e) {
+          print('❌ [$_instanceId] Error parsing menu item: $e');
+        }
+      }
+
+      menuItems.value = newMenuItems;
+
+      // Check for missing items
+      final missingItems = menuItemIds
+          .where((id) => !newMenuItems.containsKey(id))
+          .toList();
+      if (missingItems.isNotEmpty) {
+        print('⚠️ [$_instanceId] Missing menu items: $missingItems');
+      }
+
+      print('✅ [$_instanceId] Menu items loading completed');
+    } catch (e) {
+      print('❌ [$_instanceId] Error loading menu items: $e');
+      rethrow;
     }
-
-    menuItems.value = newMenuItems;
-
-    // Check for missing items
-    final missingItems = menuItemIds
-        .where((id) => !newMenuItems.containsKey(id))
-        .toList();
-    if (missingItems.isNotEmpty) {
-      print('⚠️ Missing menu items: $missingItems');
-    }
-
-    print('✅ Menu items loading completed');
   }
 
   void _updatePaymentMethods() {
-    if (!mounted) return;
+    if (!mounted) {
+      print(
+        '⚠️ [$_instanceId] Controller not mounted, skipping payment methods update',
+      );
+      return;
+    }
 
     try {
-      print('💳 Updating payment methods for: ${selectedOrderType.value}');
+      print(
+        '💳 [$_instanceId] Updating payment methods for order type: ${selectedOrderType.value}',
+      );
+
+      // Add this debug check
+      print('🔧 [$_instanceId] Checking if PaymentService is available...');
+      final bool serviceExists = Get.isRegistered<PaymentService>();
+      print('🔧 [$_instanceId] PaymentService registered: $serviceExists');
+
+      if (!serviceExists) {
+        print(
+          '❌ [$_instanceId] PaymentService not registered yet, skipping payment methods update',
+        );
+        return;
+      }
 
       final methods = paymentService.getAvailablePaymentMethods(
         selectedOrderType.value,
       );
-
       availablePaymentMethods.value = methods;
-      print('✅ Found ${methods.length} payment methods');
 
+      print('✅ [$_instanceId] Found ${methods.length} payment methods:');
+      for (int i = 0; i < methods.length; i++) {
+        print(
+          '   [$i] ${methods[i].name} (${methods[i].id}) - Online: ${methods[i].isOnline}',
+        );
+      }
+
+      // Set default payment method
       if (selectedPaymentMethod.value == null ||
           !methods.any((m) => m.id == selectedPaymentMethod.value!.id)) {
         if (methods.isNotEmpty) {
           selectedPaymentMethod.value = methods.first;
-          print('💳 Set default payment method: ${methods.first.name}');
+          print(
+            '💳 [$_instanceId] Set default payment method: ${methods.first.name}',
+          );
+        } else {
+          selectedPaymentMethod.value = null;
+          print('⚠️ [$_instanceId] No payment methods available');
         }
+      } else {
+        print(
+          '💳 [$_instanceId] Keeping current payment method: ${selectedPaymentMethod.value?.name}',
+        );
       }
     } catch (e) {
-      print('❌ Error updating payment methods: $e');
+      print('❌ [$_instanceId] Error updating payment methods: $e');
     }
   }
 
   Future<void> retryLoad() async {
-    print('🔄 Retrying cart data load...');
+    print('🔄 [$_instanceId] Retrying cart data load...');
     await loadCartData();
   }
 
   @override
   void onClose() {
-    print('🔄 CartItemController.onClose()');
+    print(
+      '🔄 [$_instanceId] CartItemController.onClose() - PERMANENT CONTROLLER BEING DISPOSED',
+    );
+    print(
+      '⚠️ [$_instanceId] This should NOT happen with permanent controllers!',
+    );
+    _logControllerState('onClose');
     instructionsController.dispose();
     super.onClose();
+  }
+
+  void _logControllerState(String location) {
+    print('📊 [$_instanceId] === CONTROLLER STATE AT $location ===');
+    print('   - Mounted: $mounted');
+    print('   - Loading: ${isLoadingData.value}');
+    print('   - Has Error: ${hasError.value}');
+    print('   - Error Message: ${errorMessage.value}');
+    print('   - Store Info: ${storeInfo.value?.name ?? 'null'}');
+    print('   - Current User: ${currentUser.value?.fullName ?? 'null'}');
+    print('   - Menu Items Count: ${menuItems.length}');
+    print('   - Selected Order Type: ${selectedOrderType.value}');
+    print(
+      '   - Selected Payment Method: ${selectedPaymentMethod.value?.name ?? 'null'}',
+    );
+    print('   - Available Payment Methods: ${availablePaymentMethods.length}');
+    print('   - Cart Items (from service): ${cartService.cartItems.length}');
+    print('   - Delivery Address: ${deliveryAddress.value}');
+    print('   - Special Instructions: ${specialInstructions.value}');
+    print('📊 [$_instanceId] === END STATE LOG ===');
   }
 
   // Calculations
   double get subtotal {
     try {
       final cartItems = cartService.cartItems;
-      return cartItems.fold(
-        0,
+      final result = cartItems.fold(
+        0.0,
         (sum, item) => sum + (item.quantity * item.price),
       );
+      print('💰 [$_instanceId] Calculated subtotal: $result');
+      return result;
     } catch (e) {
-      print('❌ Error calculating subtotal: $e');
+      print('❌ [$_instanceId] Error calculating subtotal: $e');
       return 0;
     }
   }
 
   double get deliveryFee {
-    if (selectedOrderType.value == 'delivery') {
-      return storeInfo.value?.deliveryFee ?? 5000;
-    }
-    return 0;
+    final fee = selectedOrderType.value == 'delivery'
+        ? (storeInfo.value?.deliveryFee ?? 5000)
+        : 0.0;
+    print(
+      '🚚 [$_instanceId] Delivery fee: $fee (order type: ${selectedOrderType.value})',
+    );
+    return fee;
   }
 
-  double get totalAmount => subtotal + deliveryFee;
+  double get totalAmount {
+    final total = subtotal + deliveryFee;
+    print(
+      '💰 [$_instanceId] Total amount: $total (subtotal: $subtotal + delivery: $deliveryFee)',
+    );
+    return total;
+  }
 
   // User actions
   void selectOrderType(String type) {
-    print('📝 Selecting order type: $type');
+    print(
+      '📝 [$_instanceId] Selecting order type: $type (previous: ${selectedOrderType.value})',
+    );
     selectedOrderType.value = type;
   }
 
   void selectPaymentMethod(PaymentMethodOption method) {
-    print('💳 Selecting payment method: ${method.name}');
+    print(
+      '💳 [$_instanceId] Selecting payment method: ${method.name} (${method.id})',
+    );
     selectedPaymentMethod.value = method;
   }
 
   void getCurrentLocation() async {
-    print('📍 Getting current location...');
+    print('📍 [$_instanceId] Getting current location...');
     isLoadingLocation.value = true;
 
     try {
       await Future.delayed(const Duration(seconds: 2));
       deliveryAddress.value = "Current Location: 123 Street, City, State";
 
-      print('✅ Location found: ${deliveryAddress.value}');
+      print('✅ [$_instanceId] Location found: ${deliveryAddress.value}');
       Get.snackbar(
         'Location Found',
         'Address updated successfully',
         backgroundColor: Colors.green.shade100,
       );
     } catch (e) {
-      print('❌ Error getting location: $e');
+      print('❌ [$_instanceId] Error getting location: $e');
       Get.snackbar('Error', 'Failed to get current location');
     } finally {
       isLoadingLocation.value = false;
@@ -303,6 +541,7 @@ class CartItemController extends GetxController {
   }
 
   void showAddressBottomSheet() {
+    print('📍 [$_instanceId] Showing address bottom sheet');
     final TextEditingController addressController = TextEditingController();
     addressController.text = deliveryAddress.value;
 
@@ -370,6 +609,9 @@ class CartItemController extends GetxController {
                   child: ElevatedButton(
                     onPressed: () {
                       deliveryAddress.value = addressController.text;
+                      print(
+                        '📍 [$_instanceId] Address saved: ${deliveryAddress.value}',
+                      );
                       Get.back();
                     },
                     style: ElevatedButton.styleFrom(
@@ -389,6 +631,7 @@ class CartItemController extends GetxController {
   }
 
   void showInstructionsBottomSheet() {
+    print('📝 [$_instanceId] Showing instructions bottom sheet');
     Get.bottomSheet(
       Container(
         padding: const EdgeInsets.all(20),
@@ -444,6 +687,7 @@ class CartItemController extends GetxController {
   }
 
   void showPaymentMethodBottomSheet() {
+    print('💳 [$_instanceId] Showing payment method bottom sheet');
     Get.bottomSheet(
       Container(
         padding: const EdgeInsets.all(20),
@@ -535,16 +779,20 @@ class CartItemController extends GetxController {
 
   void showConfirmationModal() {
     if (hasError.value) {
+      print('⚠️ [$_instanceId] Cannot show confirmation - has error');
       Get.snackbar('Error', 'Please reload the cart data before placing order');
       return;
     }
 
     if (isLoadingData.value) {
+      print('⚠️ [$_instanceId] Cannot show confirmation - still loading');
       Get.snackbar('Please Wait', 'Cart is still loading...');
       return;
     }
 
-    print('🎯 Showing order confirmation modal');
+    print('🎯 [$_instanceId] Showing order confirmation modal');
+    _logControllerState('showConfirmationModal');
+
     ModalAlert.showConfirmation(
       title: 'Confirm Order',
       subtitle: 'Are you sure you want to place this order?',
@@ -559,10 +807,18 @@ class CartItemController extends GetxController {
   }
 
   void processOrder() async {
-    if (isProcessingOrder.value) return;
-    if (!_validateOrder()) return;
+    if (isProcessingOrder.value) {
+      print('⚠️ [$_instanceId] Order already being processed');
+      return;
+    }
 
-    print('🚀 Starting order processing...');
+    if (!_validateOrder()) {
+      print('❌ [$_instanceId] Order validation failed');
+      return;
+    }
+
+    print('🚀 [$_instanceId] Starting order processing...');
+    _logControllerState('processOrder - START');
     isProcessingOrder.value = true;
 
     try {
@@ -589,8 +845,16 @@ class CartItemController extends GetxController {
         final payment = result['payment'] as PaymentModel;
         final order = result['order'] as OrderModel;
 
-        print('✅ Order created successfully: ${order.id}');
+        print('✅ [$_instanceId] Order created successfully:');
+        print('   - Order ID: ${order.id}');
+        print('   - Order Number: ${order.orderNumber}');
+        print('   - Payment ID: ${payment.id}');
+        print('   - Total Amount: ${payment.amount}');
+
         await cartService.clearCart();
+        print(
+          '🗑️ [$_instanceId] Cart cleared after successful order creation',
+        );
 
         ToastHelper.showToast(
           context: Get.context!,
@@ -599,6 +863,7 @@ class CartItemController extends GetxController {
           type: ToastificationType.success,
         );
 
+        print('🧭 [$_instanceId] Navigating to payment page');
         Get.offNamed(
           Routes.PAYMENT,
           arguments: {'order': order, 'payment': payment},
@@ -607,7 +872,8 @@ class CartItemController extends GetxController {
         throw Exception(result['message'] ?? 'Unknown error');
       }
     } catch (e) {
-      print('❌ Order processing error: $e');
+      print('❌ [$_instanceId] Order processing error: $e');
+      print('📍 [$_instanceId] Stack trace: ${StackTrace.current}');
       ToastHelper.showToast(
         context: Get.context!,
         title: 'Order Error',
@@ -616,32 +882,44 @@ class CartItemController extends GetxController {
       );
     } finally {
       isProcessingOrder.value = false;
+      print('🏁 [$_instanceId] Order processing finished');
     }
   }
 
   bool _validateOrder() {
+    print('✅ [$_instanceId] Validating order...');
+
     if (selectedOrderType.value == 'delivery' &&
         deliveryAddress.value.isEmpty) {
+      print('❌ [$_instanceId] Validation failed: No delivery address');
       Get.snackbar('Error', 'Please provide delivery address');
       return false;
     }
 
     if (selectedPaymentMethod.value == null) {
+      print('❌ [$_instanceId] Validation failed: No payment method selected');
       Get.snackbar('Error', 'Please select a payment method');
       return false;
     }
 
     final cartItems = cartService.cartItems;
     if (cartItems.isEmpty) {
+      print('❌ [$_instanceId] Validation failed: Cart is empty');
       Get.snackbar('Error', 'Cart is empty');
       return false;
     }
 
     if (currentUser.value == null || storeInfo.value == null) {
+      print(
+        '❌ [$_instanceId] Validation failed: Required information not loaded',
+      );
+      print('   - Current User: ${currentUser.value != null}');
+      print('   - Store Info: ${storeInfo.value != null}');
       Get.snackbar('Error', 'Required information not loaded');
       return false;
     }
 
+    print('✅ [$_instanceId] Order validation passed');
     return true;
   }
 }

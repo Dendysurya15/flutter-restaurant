@@ -159,21 +159,21 @@ class OrderService extends GetxService {
     required String paymentStatus,
   }) async {
     try {
-      // Update order status
+      // Update order status with payment_status = 'paid'
       await _supabase
           .from('orders')
           .update({
             'status': orderStatus,
-            'payment_status': paymentStatus,
+            'payment_status': paymentStatus, // This should be 'paid'
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', orderId);
 
-      // Update payment status
+      // Update payment status with status = 'completed'
       await _supabase
           .from('payments')
           .update({
-            'status': paymentStatus,
+            'status': 'completed', // Use 'completed' for payments table
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('order_id', orderId);

@@ -1,3 +1,4 @@
+import 'package:restaurant/app/modules/cart_item/controllers/cart_item_controller.dart';
 import 'package:restaurant/app/services/cart_service.dart';
 import 'package:restaurant/app/services/order_service.dart';
 import 'package:restaurant/app/services/payment_service.dart';
@@ -33,24 +34,26 @@ void main() async {
   );
 
   // Initialize Midtrans SDK
-  // MidtransSDK.init(
-  //   config: MidtransConfig(
-  //     clientKey: dotenv.env['MIDTRANS_CLIENT_KEY']!,
-  //     merchantBaseUrl: dotenv.env['MIDTRANS_MERCHANT_BASE_URL']!,
-  //     colorTheme: ColorTheme(
-  //       colorPrimary: Colors.blue,
-  //       colorPrimaryDark: Colors.blue.shade800,
-  //       colorSecondary: Colors.blueAccent,
-  //     ),
-  //   ),
-  // );
+  MidtransSDK.init(
+    config: MidtransConfig(
+      clientKey: dotenv.env['MIDTRANS_CLIENT_KEY']!,
+      merchantBaseUrl: dotenv.env['MIDTRANS_MERCHANT_BASE_URL']!,
+      colorTheme: ColorTheme(
+        colorPrimary: Colors.blue,
+        colorPrimaryDark: Colors.blue.shade800,
+        colorSecondary: Colors.blueAccent,
+      ),
+    ),
+  );
 
-  await CartService().init();
-
+  final cartService = CartService();
+  await cartService.init();
+  Get.put(cartService, permanent: true);
   // Add these lines:
   Get.put(OrderService(), permanent: true);
   Get.put(PaymentService(), permanent: true);
   Get.put(PaymentTimerService(), permanent: true);
+  Get.put(CartItemController(), permanent: true);
 
   runApp(MyApp());
 }

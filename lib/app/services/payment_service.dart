@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:midtrans_sdk/midtrans_sdk.dart';
@@ -6,6 +7,8 @@ import 'package:restaurant/app/data/models/order_model.dart';
 import 'package:restaurant/app/services/order_service.dart';
 import 'package:restaurant/app/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:async';
 
 class PaymentMethodOption {
@@ -29,6 +32,7 @@ class PaymentMethodOption {
 class PaymentService extends GetxService {
   final OrderService _orderService = Get.find<OrderService>();
 
+  // Your existing payment methods list...
   static final List<PaymentMethodOption> _allPaymentMethods = [
     // E-Wallets
     PaymentMethodOption(
@@ -58,6 +62,14 @@ class PaymentService extends GetxService {
       description: 'Bayar dengan OVO',
       icon: Icons.account_balance_wallet,
       color: const Color(0xFF4C3494),
+    ),
+    // QR Code Payment
+    PaymentMethodOption(
+      id: 'qris',
+      name: 'QRIS',
+      description: 'Scan QR Code untuk bayar',
+      icon: Icons.qr_code,
+      color: const Color(0xFF1976d2),
     ),
     // Virtual Accounts
     PaymentMethodOption(
@@ -149,48 +161,59 @@ class PaymentService extends GetxService {
     Map<String, dynamic> orderData,
   ) async {
     try {
+      print('🔄 Processing Midtrans payment for: ${payment.paymentMethod}');
+
       final snapToken = await _getSnapTokenFromBackend(payment, orderData);
 
       if (snapToken == null) {
-        throw Exception('Failed to get snap token');
+        throw Exception('Failed to get snap token from backend');
       }
 
+      print('✅ Got snap token: $snapToken');
+
       try {
+        print('🚀 Launching Midtrans payment UI...');
         await MidtransSDK().startPaymentUiFlow(token: snapToken);
 
-        // If no exception is thrown, assume payment was completed successfully
+        print('✅ Payment completed successfully');
+
+        // Update payment table with 'completed' (allowed in payments table)
         await _orderService.updatePaymentStatus(
           paymentId: payment.id,
           status: 'completed',
           transactionId: 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
         );
 
+        // Update order table with 'paid' (allowed in orders table)
         await _orderService.updateOrderAndPaymentStatus(
           orderId: payment.orderId,
-          orderStatus: 'confirmed',
+          orderStatus: 'preparing',
           paymentStatus: 'paid',
         );
 
         return {
           'success': true,
-          'message': 'Payment berhasil! Pesanan Anda sedang diproses.',
+          'message': 'Payment successful! Your order is being processed.',
           'transaction_id': 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
           'status': 'completed',
         };
       } catch (paymentError) {
-        // If exception is thrown, payment was cancelled/failed
+        print('❌ Payment failed or cancelled: $paymentError');
+
         await _orderService.updatePaymentStatus(
           paymentId: payment.id,
-          status: 'cancelled',
+          status: 'failed',
         );
 
         return {
           'success': false,
-          'message': 'Pembayaran dibatalkan atau gagal.',
+          'message': 'Payment was cancelled or failed.',
           'status': 'cancelled',
         };
       }
     } catch (e) {
+      print('❌ Error processing Midtrans payment: $e');
+
       await _orderService.updatePaymentStatus(
         paymentId: payment.id,
         status: 'failed',
@@ -198,7 +221,7 @@ class PaymentService extends GetxService {
 
       return {
         'success': false,
-        'message': 'Terjadi kesalahan: $e',
+        'message': 'Payment processing error: $e',
         'status': 'failed',
       };
     }
@@ -217,32 +240,146 @@ class PaymentService extends GetxService {
 
       return {
         'success': true,
-        'message':
-            'Pesanan dikonfirmasi. Silakan bayar tunai saat pengambilan/pengantaran.',
+        'message': 'Order confirmed. Please pay cash upon pickup/delivery.',
         'transaction_id': 'cash_${DateTime.now().millisecondsSinceEpoch}',
         'status': 'pending',
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Gagal memproses pembayaran tunai: $e',
+        'message': 'Failed to process cash payment: $e',
         'status': 'failed',
       };
     }
   }
 
+  // REAL Midtrans Snap Token Generation
   Future<String?> _getSnapTokenFromBackend(
     PaymentModel payment,
     Map<String, dynamic> orderData,
   ) async {
     try {
-      await Future.delayed(const Duration(seconds: 1));
-      return 'mock_snap_token_${DateTime.now().millisecondsSinceEpoch}';
+      final order = orderData['order'] as OrderModel;
+
+      print('🔄 Creating snap token for order: ${order.orderNumber}');
+
+      // Prepare transaction data for Midtrans
+      final transactionData = {
+        'transaction_details': {
+          'order_id': order.orderNumber, // Use order number as transaction ID
+          'gross_amount': payment.amount.toInt(),
+        },
+        'customer_details': {
+          'first_name': order.customerName.split(' ').first,
+          'last_name': order.customerName.split(' ').length > 1
+              ? order.customerName.split(' ').skip(1).join(' ')
+              : '',
+          'email':
+              'customer@example.com', // You might want to get this from user data
+          'phone': order.customerPhone,
+        },
+        'item_details': [
+          {
+            'id': 'order_${order.id}',
+            'price': payment.amount.toInt(),
+            'quantity': 1,
+            'name': 'Order from Restaurant - ${order.orderNumber}',
+          },
+        ],
+        'enabled_payments': _getEnabledPayments(payment.paymentMethod),
+      };
+
+      print('📝 Transaction data: ${jsonEncode(transactionData)}');
+
+      // Create snap token using Midtrans Snap API
+      final snapToken = await _createSnapToken(transactionData);
+
+      return snapToken;
     } catch (e) {
+      print('❌ Error getting snap token: $e');
       return null;
     }
   }
 
+  List<String> _getEnabledPayments(String paymentMethod) {
+    switch (paymentMethod) {
+      case 'gopay':
+        return ['gopay'];
+      case 'shopeepay':
+        return ['shopeepay'];
+      case 'dana':
+        return ['dana'];
+      case 'ovo':
+        return ['ovo'];
+      case 'qris':
+        return ['qris'];
+      case 'bca_va':
+        return ['bank_transfer'];
+      case 'bni_va':
+        return ['bank_transfer'];
+      case 'bri_va':
+        return ['bank_transfer'];
+      case 'credit_card':
+        return ['credit_card'];
+      case 'indomaret':
+        return ['cstore'];
+      case 'alfamart':
+        return ['cstore'];
+      default:
+        return [
+          'gopay',
+          'shopeepay',
+          'dana',
+          'ovo',
+          'qris',
+          'bank_transfer',
+          'credit_card',
+        ];
+    }
+  }
+
+  Future<String?> _createSnapToken(Map<String, dynamic> transactionData) async {
+    try {
+      // For sandbox/development, use this URL
+      const snapApiUrl =
+          'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
+      // Get server key from environment (YOUR ACTUAL KEY)
+      final serverKey = dotenv.env['MIDTRANS_SERVER_KEY'];
+
+      if (serverKey == null || serverKey.isEmpty) {
+        throw Exception('MIDTRANS_SERVER_KEY not found in environment');
+      }
+
+      print('🔑 Using server key: ${serverKey.substring(0, 15)}...');
+
+      final response = await http.post(
+        Uri.parse(snapApiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$serverKey:'))}',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(transactionData),
+      );
+
+      print('📡 Snap API response status: ${response.statusCode}');
+      print('📡 Snap API response body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return responseData['token'];
+      } else {
+        print('❌ Failed to create snap token: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Error creating snap token: $e');
+      return null;
+    }
+  }
+
+  // Rest of your existing methods...
   Future<void> handlePaymentNotification(
     Map<String, dynamic> notification,
   ) async {
@@ -289,11 +426,7 @@ class PaymentService extends GetxService {
     }
   }
 
-  // ================================
-  // NEW METHODS FOR TIMER INTEGRATION
-  // ================================
-
-  // Get pending payments for timer service
+  // Your existing methods for timer integration...
   Future<List<Map<String, dynamic>>> getPendingPayments() async {
     try {
       final currentUserId = Get.find<AuthService>().currentUser?.id;
@@ -318,10 +451,8 @@ class PaymentService extends GetxService {
         if (paymentData != null && paymentData.isNotEmpty) {
           final payment = PaymentModel.fromJson(paymentData[0]);
 
-          // Calculate remaining time (15 minutes from creation)
           final timeSinceCreated = DateTime.now().difference(payment.createdAt);
-          final remainingSeconds =
-              900 - timeSinceCreated.inSeconds; // 15 minutes - elapsed
+          final remainingSeconds = 900 - timeSinceCreated.inSeconds;
 
           if (remainingSeconds > 0) {
             pendingPayments.add({
@@ -340,7 +471,6 @@ class PaymentService extends GetxService {
     }
   }
 
-  // Update order status (for timer expiration)
   Future<void> updateOrderStatus(String orderId, String status) async {
     try {
       final updateData = {
@@ -348,7 +478,6 @@ class PaymentService extends GetxService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      // Add specific timestamps based on status
       switch (status.toLowerCase()) {
         case 'accepted':
         case 'confirmed':
@@ -361,7 +490,6 @@ class PaymentService extends GetxService {
           updateData['completed_at'] = DateTime.now().toIso8601String();
           break;
         case 'cancelled':
-          // Update payment status to cancelled if order is cancelled
           await _updateOrderPaymentStatus(orderId, 'cancelled');
           break;
       }
@@ -376,7 +504,6 @@ class PaymentService extends GetxService {
     }
   }
 
-  // Update order payment status helper
   Future<void> _updateOrderPaymentStatus(
     String orderId,
     String paymentStatus,

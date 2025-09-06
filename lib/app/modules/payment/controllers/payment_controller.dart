@@ -181,15 +181,26 @@ class PaymentController extends GetxController {
           type: ToastificationType.success,
         );
 
-        // Navigate to order history or success page
+        // Navigate to success page or order history
         Get.offAllNamed(Routes.HOME);
       } else {
-        ToastHelper.showToast(
-          context: Get.context!,
-          title: 'Payment Failed',
-          description: result['message'],
-          type: ToastificationType.error,
-        );
+        // Handle payment failure/cancellation
+        final status = result['status'];
+        if (status == 'cancelled') {
+          ToastHelper.showToast(
+            context: Get.context!,
+            title: 'Payment Cancelled',
+            description: 'Payment was cancelled. You can try again.',
+            type: ToastificationType.warning,
+          );
+        } else {
+          ToastHelper.showToast(
+            context: Get.context!,
+            title: 'Payment Failed',
+            description: result['message'],
+            type: ToastificationType.error,
+          );
+        }
       }
     } catch (e) {
       ToastHelper.showToast(
