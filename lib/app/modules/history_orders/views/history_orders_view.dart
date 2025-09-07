@@ -124,8 +124,9 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
       statusColor = Colors.red;
       statusText = 'Failed';
     } else {
-      statusColor = Colors.orange;
-      statusText = 'Processing';
+      statusColor = Colors.green;
+      statusText =
+          'Processing Food'; // Changed from 'Processing' to 'Processing Food'
     }
 
     return Card(

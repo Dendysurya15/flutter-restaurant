@@ -161,26 +161,36 @@ class PaymentController extends GetxController {
   void _checkPaymentStatus(String url) {
     print('Checking payment status from URL: $url');
 
+    // Success patterns - including Midtrans sandbox success URLs
     if (url.contains('status_code=200') ||
         url.contains('transaction_status=settlement') ||
-        url.contains('transaction_status=capture')) {
+        url.contains('transaction_status=capture') ||
+        url.contains('simulator.sandbox.midtrans.com/v2/deeplink/payment') ||
+        url.contains('deeplink/payment') ||
+        url.contains('payment_success') ||
+        url.contains('success')) {
       _handlePaymentResult({
         'success': true,
         'status': 'completed',
         'message': 'Payment completed successfully',
       });
-    } else if (url.contains('status_code=201') ||
+    }
+    // Pending patterns
+    else if (url.contains('status_code=201') ||
         url.contains('transaction_status=pending')) {
       _handlePaymentResult({
         'success': true,
         'status': 'pending',
         'message': 'Payment is being processed',
       });
-    } else if (url.contains('status_code=202') ||
+    }
+    // Failure/cancellation patterns
+    else if (url.contains('status_code=202') ||
         url.contains('transaction_status=cancel') ||
         url.contains('transaction_status=deny') ||
         url.contains('cancel') ||
-        url.contains('failed')) {
+        url.contains('failed') ||
+        url.contains('error')) {
       _handlePaymentResult({
         'success': false,
         'status': 'cancelled',
