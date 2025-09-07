@@ -150,82 +150,215 @@ class PaymentService extends GetxService {
     }
 
     if (paymentMethod.isOnline) {
-      return await _processMidtransPayment(payment, orderData);
+      // For online payments, return a token that the controller will use
+      // The actual payment processing is now handled by the PaymentController with WebView
+      try {
+        final snapToken = await getSnapTokenFromBackend(payment, orderData);
+
+        if (snapToken == null) {
+          return {
+            'success': false,
+            'message': 'Failed to generate payment token',
+            'status': 'token_error',
+          };
+        }
+
+        return {
+          'success': true,
+          'message': 'Payment token generated successfully',
+          'snap_token': snapToken,
+          'status': 'token_ready',
+          'payment_url':
+              'https://app.sandbox.midtrans.com/snap/v4/redirection/$snapToken',
+        };
+      } catch (e) {
+        return {
+          'success': false,
+          'message': 'Error generating payment token: $e',
+          'status': 'token_error',
+        };
+      }
     } else {
+      // For cash payments, process normally
       return await _processCashPayment(payment, orderData);
     }
   }
 
-  Future<Map<String, dynamic>> _processMidtransPayment(
-    PaymentModel payment,
-    Map<String, dynamic> orderData,
-  ) async {
-    try {
-      print('🔄 Processing Midtrans payment for: ${payment.paymentMethod}');
+  // // Fixed version of your _processMidtransPayment method:
+  // Future<Map<String, dynamic>> _processMidtransPayment(
+  //   PaymentModel payment,
+  //   Map<String, dynamic> orderData,
+  // ) async {
+  //   try {
+  //     print('🔄 Processing Midtrans payment for: ${payment.paymentMethod}');
 
-      final snapToken = await _getSnapTokenFromBackend(payment, orderData);
+  //     final snapToken = await _getSnapTokenFromBackend(payment, orderData);
 
-      if (snapToken == null) {
-        throw Exception('Failed to get snap token from backend');
-      }
+  //     if (snapToken == null) {
+  //       throw Exception('Failed to get snap token from backend');
+  //     }
 
-      print('✅ Got snap token: $snapToken');
+  //     print('✅ Got snap token: $snapToken');
 
-      try {
-        print('🚀 Launching Midtrans payment UI...');
-        await MidtransSDK().startPaymentUiFlow(token: snapToken);
+  //     try {
+  //       print('🚀 About to launch Midtrans payment UI...');
 
-        print('✅ Payment completed successfully');
+  //       // The result type varies by SDK version, so we handle it as dynamic
+  //       dynamic result;
 
-        // Update payment table with 'completed' (allowed in payments table)
-        await _orderService.updatePaymentStatus(
-          paymentId: payment.id,
-          status: 'completed',
-          transactionId: 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
-        );
+  //       try {
+  //         result = await MidtransSDK().startPaymentUiFlow(token: snapToken);
+  //         print('📱 Raw result: $result');
+  //         print('📱 Result type: ${result.runtimeType}');
+  //       } catch (sdkError) {
+  //         print('❌ SDK Error: $sdkError');
+  //         throw sdkError;
+  //       }
 
-        // Update order table with 'paid' (allowed in orders table)
-        await _orderService.updateOrderAndPaymentStatus(
-          orderId: payment.orderId,
-          orderStatus: 'preparing',
-          paymentStatus: 'paid',
-        );
+  //       // Handle different possible result types
+  //       if (result == null) {
+  //         print('❌ Result is null - payment cancelled or SDK error');
 
-        return {
-          'success': true,
-          'message': 'Payment successful! Your order is being processed.',
-          'transaction_id': 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
-          'status': 'completed',
-        };
-      } catch (paymentError) {
-        print('❌ Payment failed or cancelled: $paymentError');
+  //         await _orderService.updatePaymentStatus(
+  //           paymentId: payment.id,
+  //           status: 'failed',
+  //         );
 
-        await _orderService.updatePaymentStatus(
-          paymentId: payment.id,
-          status: 'failed',
-        );
+  //         return {
+  //           'success': false,
+  //           'message': 'Payment was cancelled or failed to launch',
+  //           'status': 'cancelled',
+  //         };
+  //       }
 
-        return {
-          'success': false,
-          'message': 'Payment was cancelled or failed.',
-          'status': 'cancelled',
-        };
-      }
-    } catch (e) {
-      print('❌ Error processing Midtrans payment: $e');
+  //       // Check if result is a Map (some SDK versions return Map)
+  //       if (result is Map<String, dynamic>) {
+  //         print('📱 Result is Map with keys: ${result.keys}');
 
-      await _orderService.updatePaymentStatus(
-        paymentId: payment.id,
-        status: 'failed',
-      );
+  //         final status =
+  //             result['status'] ?? result['transaction_status'] ?? 'unknown';
+  //         final transactionId = result['transaction_id'] ?? result['order_id'];
 
-      return {
-        'success': false,
-        'message': 'Payment processing error: $e',
-        'status': 'failed',
-      };
-    }
-  }
+  //         print('📱 Transaction status: $status');
+  //         print('📱 Transaction ID: $transactionId');
+
+  //         if (status == 'success' ||
+  //             status == 'settlement' ||
+  //             status == 'capture') {
+  //           // Payment successful
+  //           await _orderService.updatePaymentStatus(
+  //             paymentId: payment.id,
+  //             status: 'completed',
+  //             transactionId:
+  //                 transactionId ??
+  //                 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
+  //           );
+
+  //           await _orderService.updateOrderAndPaymentStatus(
+  //             orderId: payment.orderId,
+  //             orderStatus: 'preparing',
+  //             paymentStatus: 'paid',
+  //           );
+
+  //           return {
+  //             'success': true,
+  //             'message': 'Payment successful! Your order is being processed.',
+  //             'transaction_id': transactionId,
+  //             'status': 'completed',
+  //           };
+  //         } else {
+  //           // Payment failed or cancelled
+  //           await _orderService.updatePaymentStatus(
+  //             paymentId: payment.id,
+  //             status: 'failed',
+  //           );
+
+  //           return {
+  //             'success': false,
+  //             'message': 'Payment failed or was cancelled',
+  //             'status': status,
+  //           };
+  //         }
+  //       }
+
+  //       // Check if result is a String (some SDK versions return String)
+  //       if (result is String) {
+  //         print('📱 Result is String: $result');
+
+  //         if (result.toLowerCase().contains('success') ||
+  //             result.toLowerCase().contains('completed')) {
+  //           // Payment successful
+  //           await _orderService.updatePaymentStatus(
+  //             paymentId: payment.id,
+  //             status: 'completed',
+  //             transactionId:
+  //                 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
+  //           );
+
+  //           await _orderService.updateOrderAndPaymentStatus(
+  //             orderId: payment.orderId,
+  //             orderStatus: 'preparing',
+  //             paymentStatus: 'paid',
+  //           );
+
+  //           return {
+  //             'success': true,
+  //             'message': 'Payment successful! Your order is being processed.',
+  //             'transaction_id':
+  //                 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
+  //             'status': 'completed',
+  //           };
+  //         } else {
+  //           return {
+  //             'success': false,
+  //             'message': 'Payment failed or was cancelled',
+  //             'status': 'failed',
+  //           };
+  //         }
+  //       }
+
+  //       // If result is any other type, log it and treat as unknown
+  //       print('📱 Unknown result type: ${result.runtimeType}');
+  //       print('📱 Result content: $result');
+
+  //       // Since the SDK is returning immediately without showing UI,
+  //       // this is likely a configuration issue
+  //       return {
+  //         'success': false,
+  //         'message':
+  //             'Payment UI did not appear properly. SDK configuration issue.',
+  //         'status': 'sdk_error',
+  //         'debug_info': 'Result type: ${result.runtimeType}, Content: $result',
+  //       };
+  //     } catch (paymentError) {
+  //       print('❌ Payment UI error: $paymentError');
+
+  //       await _orderService.updatePaymentStatus(
+  //         paymentId: payment.id,
+  //         status: 'failed',
+  //       );
+
+  //       return {
+  //         'success': false,
+  //         'message': 'Payment UI failed: $paymentError',
+  //         'status': 'failed',
+  //       };
+  //     }
+  //   } catch (e) {
+  //     print('❌ Error processing Midtrans payment: $e');
+
+  //     await _orderService.updatePaymentStatus(
+  //       paymentId: payment.id,
+  //       status: 'failed',
+  //     );
+
+  //     return {
+  //       'success': false,
+  //       'message': 'Payment processing error: $e',
+  //       'status': 'failed',
+  //     };
+  //   }
+  // }
 
   Future<Map<String, dynamic>> _processCashPayment(
     PaymentModel payment,
@@ -253,8 +386,7 @@ class PaymentService extends GetxService {
     }
   }
 
-  // REAL Midtrans Snap Token Generation
-  Future<String?> _getSnapTokenFromBackend(
+  Future<String?> getSnapTokenFromBackend(
     PaymentModel payment,
     Map<String, dynamic> orderData,
   ) async {

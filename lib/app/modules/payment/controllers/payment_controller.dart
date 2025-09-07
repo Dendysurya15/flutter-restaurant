@@ -1,19 +1,19 @@
-// app/modules/payment/controllers/payment_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:restaurant/app/data/models/order_model.dart';
 import 'package:restaurant/app/data/models/payment_model.dart';
-import 'package:restaurant/app/helper/toast_helper.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:restaurant/app/services/payment_service.dart';
 import 'package:restaurant/app/services/payment_timer_service.dart';
-import 'package:toastification/toastification.dart';
+import 'package:restaurant/app/services/order_service.dart';
 
 class PaymentController extends GetxController {
   final OrderModel order;
   final PaymentModel payment;
   final PaymentService paymentService = Get.find<PaymentService>();
   final PaymentTimerService timerService = Get.find<PaymentTimerService>();
+  final OrderService orderService = Get.find<OrderService>();
 
   PaymentController({required this.order, required this.payment});
 
@@ -21,15 +21,21 @@ class PaymentController extends GetxController {
   final isProcessingPayment = false.obs;
   final countdownSeconds = 0.obs;
   final isExpired = false.obs;
+  final isPaymentUILaunched = false.obs;
   PaymentTimerData? timerData;
+
+  // WebView observables
+  final showPaymentWebView = false.obs;
+  final paymentWebViewUrl = ''.obs;
+  final isWebViewLoading = true.obs;
+  WebViewController? webViewController;
 
   @override
   void onInit() {
     super.onInit();
-
-    // Wait until after the first frame to initialize timer
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeTimer();
+      _autoLaunchPaymentUI();
     });
   }
 
@@ -37,26 +43,21 @@ class PaymentController extends GetxController {
     final args = Get.arguments as Map<String, dynamic>?;
     timerData = args?['timer_data'] ?? timerService.getPaymentTimer(payment.id);
 
-    // Use payment.createdAt instead of order.createdAt
     final timeSincePaymentCreated = DateTime.now().difference(
       payment.createdAt,
     );
-    final actualRemainingSeconds =
-        900 - timeSincePaymentCreated.inSeconds; // 15 minutes
+    final actualRemainingSeconds = 900 - timeSincePaymentCreated.inSeconds;
 
-    print('🕐 Payment created at: ${payment.createdAt}');
-    print('🕐 Current time: ${DateTime.now()}');
+    print('Payment created at: ${payment.createdAt}');
     print(
-      '🕐 Time since payment created: ${timeSincePaymentCreated.inSeconds} seconds',
+      'Time since payment created: ${timeSincePaymentCreated.inSeconds} seconds',
     );
-    print('🕐 Remaining seconds: $actualRemainingSeconds');
+    print('Remaining seconds: $actualRemainingSeconds');
 
     if (actualRemainingSeconds <= 0) {
-      print('⚠️ Payment already expired');
       countdownSeconds.value = 0;
       isExpired.value = true;
     } else if (timerData == null) {
-      print('▶️ Starting timer with $actualRemainingSeconds seconds');
       timerService.startPaymentTimer(
         order: order,
         payment: payment,
@@ -64,40 +65,316 @@ class PaymentController extends GetxController {
       );
       timerData = timerService.getPaymentTimer(payment.id);
 
-      // Link the timer data to local observables
       if (timerData != null) {
         countdownSeconds.value = timerData!.remainingSeconds.value;
         isExpired.value = timerData!.isExpired.value;
 
-        // Listen to timer updates
         ever(timerData!.remainingSeconds, (seconds) {
           countdownSeconds.value = seconds;
         });
 
         ever(timerData!.isExpired, (expired) {
           isExpired.value = expired;
+          if (expired) {
+            _handlePaymentExpired();
+          }
         });
       }
     } else {
-      // Timer already exists, link to it
       countdownSeconds.value = timerData!.remainingSeconds.value;
       isExpired.value = timerData!.isExpired.value;
 
-      // Listen to timer updates
       ever(timerData!.remainingSeconds, (seconds) {
         countdownSeconds.value = seconds;
       });
 
       ever(timerData!.isExpired, (expired) {
         isExpired.value = expired;
+        if (expired) {
+          _handlePaymentExpired();
+        }
       });
     }
   }
 
-  @override
-  void onClose() {
-    // Don't cancel timer here - let it continue globally
-    super.onClose();
+  void _autoLaunchPaymentUI() async {
+    if (isExpired.value || isPaymentUILaunched.value) return;
+
+    print('Auto launching payment UI...');
+    isPaymentUILaunched.value = true;
+    await Future.delayed(Duration(milliseconds: 500));
+    processPayment();
+  }
+
+  void _handlePaymentExpired() {
+    print('Payment expired - closing WebView');
+    closePaymentWebView();
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Payment Expired'),
+        content: const Text(
+          'Your payment time has expired. Please place a new order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back(); // Close dialog
+              Get.back(); // Go back to previous screen
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  void _initializeWebView(String url) {
+    paymentWebViewUrl.value = url;
+    isWebViewLoading.value = true;
+
+    webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            print('WebView page started: $url');
+            isWebViewLoading.value = true;
+          },
+          onPageFinished: (String url) {
+            print('WebView page finished: $url');
+            isWebViewLoading.value = false;
+            _checkPaymentStatus(url);
+          },
+          onWebResourceError: (WebResourceError error) {
+            print('WebView error: ${error.description}');
+            isWebViewLoading.value = false;
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(url));
+
+    showPaymentWebView.value = true;
+  }
+
+  void _checkPaymentStatus(String url) {
+    print('Checking payment status from URL: $url');
+
+    if (url.contains('status_code=200') ||
+        url.contains('transaction_status=settlement') ||
+        url.contains('transaction_status=capture')) {
+      _handlePaymentResult({
+        'success': true,
+        'status': 'completed',
+        'message': 'Payment completed successfully',
+      });
+    } else if (url.contains('status_code=201') ||
+        url.contains('transaction_status=pending')) {
+      _handlePaymentResult({
+        'success': true,
+        'status': 'pending',
+        'message': 'Payment is being processed',
+      });
+    } else if (url.contains('status_code=202') ||
+        url.contains('transaction_status=cancel') ||
+        url.contains('transaction_status=deny') ||
+        url.contains('cancel') ||
+        url.contains('failed')) {
+      _handlePaymentResult({
+        'success': false,
+        'status': 'cancelled',
+        'message': 'Payment was cancelled or failed',
+      });
+    }
+  }
+
+  void _handlePaymentResult(Map<String, dynamic> result) async {
+    print('Handling payment result: $result');
+    closePaymentWebView();
+
+    if (result['success'] == true) {
+      final status = result['status'];
+
+      if (status == 'completed') {
+        await orderService.updatePaymentStatus(
+          paymentId: payment.id,
+          status: 'completed',
+          transactionId: 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
+        );
+
+        await orderService.updateOrderAndPaymentStatus(
+          orderId: payment.orderId,
+          orderStatus: 'preparing',
+          paymentStatus: 'paid',
+        );
+
+        timerService.stopPaymentTimer(payment.id);
+
+        Get.snackbar(
+          'Payment Success',
+          result['message'],
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+
+        Get.offAllNamed(Routes.HOME);
+      } else if (status == 'pending') {
+        await orderService.updatePaymentStatus(
+          paymentId: payment.id,
+          status: 'pending',
+          transactionId: 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
+        );
+
+        Get.snackbar(
+          'Payment Pending',
+          result['message'],
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      }
+    } else {
+      await orderService.updatePaymentStatus(
+        paymentId: payment.id,
+        status: 'failed',
+      );
+
+      if (result['status'] == 'cancelled') {
+        isPaymentUILaunched.value = false;
+        Get.snackbar(
+          'Payment Cancelled',
+          'You can try payment again',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar(
+          'Payment Failed',
+          result['message'],
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    }
+
+    isProcessingPayment.value = false;
+  }
+
+  void closePaymentWebView() {
+    showPaymentWebView.value = false;
+    paymentWebViewUrl.value = '';
+    webViewController = null;
+    isWebViewLoading.value = false;
+  }
+
+  void processPayment() async {
+    if (isProcessingPayment.value || isExpired.value) return;
+
+    isProcessingPayment.value = true;
+
+    try {
+      print('Starting payment process for method: ${payment.paymentMethod}');
+
+      final result = await paymentService.processPayment(
+        payment: payment,
+        orderData: {'order': order},
+      );
+
+      if (result['success'] == true && result['status'] == 'token_ready') {
+        final paymentUrl = result['payment_url'];
+        print('Opening payment WebView: $paymentUrl');
+        _initializeWebView(paymentUrl);
+      } else {
+        throw Exception(result['message']);
+      }
+    } catch (e) {
+      print('Payment error: $e');
+      isProcessingPayment.value = false;
+
+      Get.snackbar(
+        'Payment Error',
+        'Failed to load payment: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void retryPayment() {
+    if (isExpired.value) return;
+    closePaymentWebView();
+    isPaymentUILaunched.value = false;
+    processPayment();
+  }
+
+  void showExitDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Leave Payment?'),
+        content: const Text(
+          'Your payment timer will continue running. You can return to complete payment from your order history.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Stay')),
+          TextButton(
+            onPressed: () {
+              closePaymentWebView();
+              Get.back();
+              Get.back();
+            },
+            child: const Text('Leave', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void cancelPayment() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Cancel Payment?'),
+        content: const Text(
+          'This will cancel your order and you will need to place a new order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Keep Order'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Get.back();
+
+              try {
+                await paymentService.updateOrderStatus(order.id, 'cancelled');
+                timerService.stopPaymentTimer(payment.id);
+                closePaymentWebView();
+
+                Get.snackbar(
+                  'Order Cancelled',
+                  'Your order has been cancelled',
+                  backgroundColor: Colors.blue,
+                  colorText: Colors.white,
+                );
+
+                Get.offAllNamed(Routes.HOME);
+              } catch (e) {
+                Get.snackbar(
+                  'Error',
+                  'Failed to cancel order',
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
+              }
+            },
+            child: const Text(
+              'Cancel Order',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String get formattedTime {
@@ -106,7 +383,6 @@ class PaymentController extends GetxController {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // Add getter for order time formatting
   String get orderTimeFormatted {
     return _formatDateTime(order.createdAt);
   }
@@ -116,7 +392,6 @@ class PaymentController extends GetxController {
   }
 
   String _formatDateTime(DateTime dateTime) {
-    // Format: "5 Sep 2025, 20:44"
     final months = [
       '',
       'Jan',
@@ -138,130 +413,9 @@ class PaymentController extends GetxController {
         '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  void showExitDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Leave Payment?'),
-        content: const Text(
-          'Your payment timer will continue running. You can return to complete payment from your order history.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Stay')),
-          TextButton(
-            onPressed: () {
-              Get.back(); // Close dialog
-              Get.back(); // Go back to previous page
-            },
-            child: const Text('Leave', style: TextStyle(color: Colors.orange)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void processPayment() async {
-    if (isProcessingPayment.value) return;
-
-    isProcessingPayment.value = true;
-
-    try {
-      final result = await paymentService.processPayment(
-        payment: payment,
-        orderData: {'order': order},
-      );
-
-      if (result['success']) {
-        // Stop the timer since payment is successful
-        timerService.stopPaymentTimer(payment.id);
-
-        ToastHelper.showToast(
-          context: Get.context!,
-          title: 'Payment Success',
-          description: result['message'],
-          type: ToastificationType.success,
-        );
-
-        // Navigate to success page or order history
-        Get.offAllNamed(Routes.HOME);
-      } else {
-        // Handle payment failure/cancellation
-        final status = result['status'];
-        if (status == 'cancelled') {
-          ToastHelper.showToast(
-            context: Get.context!,
-            title: 'Payment Cancelled',
-            description: 'Payment was cancelled. You can try again.',
-            type: ToastificationType.warning,
-          );
-        } else {
-          ToastHelper.showToast(
-            context: Get.context!,
-            title: 'Payment Failed',
-            description: result['message'],
-            type: ToastificationType.error,
-          );
-        }
-      }
-    } catch (e) {
-      ToastHelper.showToast(
-        context: Get.context!,
-        title: 'Payment Error',
-        description:
-            'An error occurred while processing payment. Please try again.',
-        type: ToastificationType.error,
-      );
-    } finally {
-      isProcessingPayment.value = false;
-    }
-  }
-
-  void cancelPayment() {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Cancel Payment?'),
-        content: const Text(
-          'This will cancel your order and you will need to place a new order.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Keep Order'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Get.back(); // Close dialog
-
-              try {
-                // Update order status to cancelled
-                await paymentService.updateOrderStatus(order.id, 'cancelled');
-
-                // Stop timer
-                timerService.stopPaymentTimer(payment.id);
-
-                ToastHelper.showToast(
-                  context: Get.context!,
-                  title: 'Order Cancelled',
-                  description: 'Your order has been cancelled.',
-                  type: ToastificationType.info,
-                );
-
-                Get.offAllNamed(Routes.HOME);
-              } catch (e) {
-                ToastHelper.showToast(
-                  context: Get.context!,
-                  title: 'Error',
-                  description: 'Failed to cancel order. Please try again.',
-                  type: ToastificationType.error,
-                );
-              }
-            },
-            child: const Text(
-              'Cancel Order',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void onClose() {
+    closePaymentWebView();
+    super.onClose();
   }
 }
