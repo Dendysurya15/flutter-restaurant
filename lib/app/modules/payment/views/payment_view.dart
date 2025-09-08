@@ -11,7 +11,8 @@ class PaymentView extends GetView<PaymentController> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete Payment'),
-        backgroundColor: Colors.blue.shade600,
+        backgroundColor:
+            Colors.orange.shade600, // Changed to orange for restaurant theme
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -82,181 +83,152 @@ class PaymentView extends GetView<PaymentController> {
                     final isExpired = controller.countdownSeconds.value <= 0;
 
                     if (showWebView && webViewUrl.isNotEmpty && !isExpired) {
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Calculate dynamic height based on screen size
-                          final screenHeight = MediaQuery.of(
-                            context,
-                          ).size.height;
-                          final availableHeight =
-                              screenHeight -
-                              400; // Subtract space for timer, cards, etc.
-                          final webViewHeight = (availableHeight * 0.7).clamp(
-                            300.0,
-                            500.0,
-                          ); // 70% of available space, min 300px, max 500px
-
-                          return Container(
-                            height: MediaQuery.of(context).size.height * 0.8,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.blue.shade200,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
+                      return Container(
+                        height: MediaQuery.of(context).size.height * 0.8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.shade200, // Changed to orange
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Column(
+                            children: [
+                              // WebView Header
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade600,
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(10),
+                                    topRight: Radius.circular(10),
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Column(
-                                children: [
-                                  // WebView Header
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade600,
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(10),
-                                        topRight: Radius.circular(10),
-                                      ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.payment,
+                                      color: Colors.white,
+                                      size: 20,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.payment,
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: Text(
+                                        'Complete Your Payment',
+                                        style: TextStyle(
                                           color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        const Expanded(
-                                          child: Text(
-                                            'Complete Your Payment',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(
-                                              0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: Obx(
-                                            () => Text(
-                                              controller.formattedTime,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontFamily: 'monospace',
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // WebView Content with proper scrolling
-                                  Expanded(
-                                    child: Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.only(
-                                          bottomLeft: Radius.circular(10),
-                                          bottomRight: Radius.circular(10),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      child: Stack(
-                                        children: [
-                                          if (controller.webViewController !=
-                                              null)
-                                            ClipRRect(
-                                              borderRadius:
-                                                  const BorderRadius.only(
-                                                    bottomLeft: Radius.circular(
-                                                      10,
-                                                    ),
-                                                    bottomRight:
-                                                        Radius.circular(10),
-                                                  ),
-                                              child: WebViewWidget(
-                                                controller: controller
-                                                    .webViewController!,
-                                              ),
-                                            ),
-
-                                          // Loading indicator
-                                          Obx(() {
-                                            if (!controller
-                                                .isWebViewLoading
-                                                .value) {
-                                              return const SizedBox.shrink();
-                                            }
-
-                                            return Container(
-                                              decoration: const BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius: BorderRadius.only(
-                                                  bottomLeft: Radius.circular(
-                                                    10,
-                                                  ),
-                                                  bottomRight: Radius.circular(
-                                                    10,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: const Center(
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    CircularProgressIndicator(),
-                                                    SizedBox(height: 16),
-                                                    Text(
-                                                      'Loading payment interface...',
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    SizedBox(height: 8),
-                                                    Text(
-                                                      'This may take a few seconds',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: Colors.grey,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          }),
-                                        ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Obx(
+                                        () => Text(
+                                          controller.formattedTime,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontFamily: 'monospace',
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
+
+                              // WebView Content
+                              Expanded(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.only(
+                                      bottomLeft: Radius.circular(10),
+                                      bottomRight: Radius.circular(10),
+                                    ),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      if (controller.webViewController != null)
+                                        ClipRRect(
+                                          borderRadius: const BorderRadius.only(
+                                            bottomLeft: Radius.circular(10),
+                                            bottomRight: Radius.circular(10),
+                                          ),
+                                          child: WebViewWidget(
+                                            controller:
+                                                controller.webViewController!,
+                                          ),
+                                        ),
+
+                                      // Loading indicator
+                                      Obx(() {
+                                        if (!controller
+                                            .isWebViewLoading
+                                            .value) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        return Container(
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.only(
+                                              bottomLeft: Radius.circular(10),
+                                              bottomRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                CircularProgressIndicator(),
+                                                SizedBox(height: 16),
+                                                Text(
+                                                  'Loading payment interface...',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                SizedBox(height: 8),
+                                                Text(
+                                                  'This may take a few seconds',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     } else {
                       return const SizedBox.shrink();
@@ -265,14 +237,13 @@ class PaymentView extends GetView<PaymentController> {
 
                   const SizedBox(height: 20),
 
-                  // Retry Payment Button (only show when WebView is not active)
+                  // Retry Payment Button
                   Obx(() {
                     final showWebView = controller.showPaymentWebView.value;
                     final isExpired = controller.countdownSeconds.value <= 0;
                     final isProcessing = controller.isProcessingPayment.value;
                     final isLaunched = controller.isPaymentUILaunched.value;
 
-                    // Don't show button when WebView is active
                     if (showWebView) return const SizedBox.shrink();
 
                     return SizedBox(
@@ -300,7 +271,7 @@ class PaymentView extends GetView<PaymentController> {
                           return ElevatedButton(
                             onPressed: null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
+                              backgroundColor: Colors.orange,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
@@ -364,7 +335,7 @@ class PaymentView extends GetView<PaymentController> {
           children: [
             Row(
               children: [
-                Icon(Icons.receipt, color: Colors.blue.shade700),
+                Icon(Icons.receipt, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 const Text(
                   'Order Summary',
@@ -379,15 +350,15 @@ class PaymentView extends GetView<PaymentController> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(color: Colors.orange.shade200),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.access_time,
-                    color: Colors.blue.shade700,
+                    color: Colors.orange.shade700,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -399,7 +370,7 @@ class PaymentView extends GetView<PaymentController> {
                           'Order Time',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue.shade600,
+                            color: Colors.orange.shade600,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -419,17 +390,13 @@ class PaymentView extends GetView<PaymentController> {
             ),
 
             _buildInfoRow('Order #', controller.order.orderNumber),
-            _buildInfoRow(
-              'Type',
-              controller.order.orderType == 'dine_in' ? 'Dine In' : 'Delivery',
-            ),
+            _buildInfoRow('Type', 'Pickup'), // Always pickup for restaurant
             _buildInfoRow('Customer', controller.order.customerName),
-            if (controller.order.deliveryAddress != null)
-              _buildInfoRow('Address', controller.order.deliveryAddress!),
+            _buildInfoRow('Phone', controller.order.customerPhone),
 
             const Divider(height: 24),
 
-            // Payment Details
+            // Payment Details (removed delivery fee)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -447,27 +414,11 @@ class PaymentView extends GetView<PaymentController> {
                         style: TextStyle(color: Colors.grey.shade700),
                       ),
                       Text(
-                        'Rp.${controller.order.subtotal.toInt()}',
+                        'Rp ${_formatPrice(controller.order.subtotal)}',
                         style: TextStyle(color: Colors.grey.shade700),
                       ),
                     ],
                   ),
-                  if (controller.order.deliveryFee > 0) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Delivery Fee',
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                        Text(
-                          'Rp.${controller.order.deliveryFee.toInt()}',
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                      ],
-                    ),
-                  ],
                   const SizedBox(height: 8),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
@@ -482,7 +433,7 @@ class PaymentView extends GetView<PaymentController> {
                         ),
                       ),
                       Text(
-                        'Rp.${controller.order.totalAmount.toInt()}',
+                        'Rp ${_formatPrice(controller.order.totalAmount)}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -513,7 +464,7 @@ class PaymentView extends GetView<PaymentController> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.payment, color: Colors.blue.shade700),
+                  Icon(Icons.payment, color: Colors.orange.shade700),
                   const SizedBox(width: 8),
                   const Text(
                     'Payment Method',
@@ -525,12 +476,14 @@ class PaymentView extends GetView<PaymentController> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isExpired ? Colors.grey.shade100 : Colors.blue.shade50,
+                  color: isExpired
+                      ? Colors.grey.shade100
+                      : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isExpired
                         ? Colors.grey.shade300
-                        : Colors.blue.shade200,
+                        : Colors.orange.shade200,
                   ),
                 ),
                 child: Row(
@@ -640,6 +593,15 @@ class PaymentView extends GetView<PaymentController> {
     );
   }
 
+  String _formatPrice(double price) {
+    return price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
+  }
+
   Color _getPaymentMethodColor() {
     switch (controller.payment.paymentMethod) {
       case 'gopay':
@@ -651,7 +613,7 @@ class PaymentView extends GetView<PaymentController> {
       case 'shopeepay':
         return const Color(0xFFEE4D2D);
       default:
-        return Colors.blue;
+        return Colors.orange;
     }
   }
 

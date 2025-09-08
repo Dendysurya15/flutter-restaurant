@@ -3,20 +3,18 @@ class OrderModel {
   final String customerId;
   final String storeId;
   final String orderNumber;
-  final String orderType; // 'dine_in' or 'delivery'
-  final String status; // 'pending', 'accepted', 'declined', etc.
+  final String orderType; // 'pickup' only (removed delivery)
+  final String
+  status; // 'pending', 'preparing', 'ready', 'completed', 'rejected'
   final String customerName;
   final String customerPhone;
-  final String? deliveryAddress;
-  final double? deliveryLatitude;
-  final double? deliveryLongitude;
   final double subtotal;
-  final double deliveryFee;
   final double totalAmount;
   final String paymentMethod; // 'online' or 'offline'
   final String paymentStatus; // 'pending', 'paid', etc.
   final String? specialInstructions;
-  final DateTime? estimatedDeliveryTime;
+  final DateTime?
+  estimatedCookingTime; // Changed from deliveryTime to cookingTime
   final DateTime? acceptedAt;
   final DateTime? readyAt;
   final DateTime? completedAt;
@@ -28,20 +26,16 @@ class OrderModel {
     required this.customerId,
     required this.storeId,
     required this.orderNumber,
-    required this.orderType,
+    this.orderType = 'pickup', // Default to pickup
     required this.status,
     required this.customerName,
     required this.customerPhone,
-    this.deliveryAddress,
-    this.deliveryLatitude,
-    this.deliveryLongitude,
     required this.subtotal,
-    this.deliveryFee = 0,
     required this.totalAmount,
     required this.paymentMethod,
     this.paymentStatus = 'pending',
     this.specialInstructions,
-    this.estimatedDeliveryTime,
+    this.estimatedCookingTime,
     this.acceptedAt,
     this.readyAt,
     this.completedAt,
@@ -55,21 +49,17 @@ class OrderModel {
       customerId: json['customer_id'],
       storeId: json['store_id'],
       orderNumber: json['order_number'],
-      orderType: json['order_type'],
+      orderType: json['order_type'] ?? 'pickup',
       status: json['status'],
       customerName: json['customer_name'],
       customerPhone: json['customer_phone'],
-      deliveryAddress: json['delivery_address'],
-      deliveryLatitude: json['delivery_latitude']?.toDouble(),
-      deliveryLongitude: json['delivery_longitude']?.toDouble(),
       subtotal: (json['subtotal']).toDouble(),
-      deliveryFee: (json['delivery_fee'] ?? 0).toDouble(),
       totalAmount: (json['total_amount']).toDouble(),
       paymentMethod: json['payment_method'],
       paymentStatus: json['payment_status'] ?? 'pending',
       specialInstructions: json['special_instructions'],
-      estimatedDeliveryTime: json['estimated_delivery_time'] != null
-          ? DateTime.parse(json['estimated_delivery_time'])
+      estimatedCookingTime: json['estimated_cooking_time'] != null
+          ? DateTime.parse(json['estimated_cooking_time'])
           : null,
       acceptedAt: json['accepted_at'] != null
           ? DateTime.parse(json['accepted_at'])
@@ -95,21 +85,112 @@ class OrderModel {
       'status': status,
       'customer_name': customerName,
       'customer_phone': customerPhone,
-      'delivery_address': deliveryAddress,
-      'delivery_latitude': deliveryLatitude,
-      'delivery_longitude': deliveryLongitude,
       'subtotal': subtotal,
-      'delivery_fee': deliveryFee,
       'total_amount': totalAmount,
       'payment_method': paymentMethod,
       'payment_status': paymentStatus,
       'special_instructions': specialInstructions,
-      'estimated_delivery_time': estimatedDeliveryTime?.toIso8601String(),
+      'estimated_cooking_time': estimatedCookingTime?.toIso8601String(),
       'accepted_at': acceptedAt?.toIso8601String(),
       'ready_at': readyAt?.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+  }
+
+  // Helper method to get time until ready
+  Duration? get timeUntilReady {
+    if (estimatedCookingTime == null) return null;
+    final now = DateTime.now();
+    if (estimatedCookingTime!.isBefore(now)) return null;
+    return estimatedCookingTime!.difference(now);
+  }
+
+  // Helper method to check if order is overdue
+  bool get isOverdue {
+    if (estimatedCookingTime == null || status != 'preparing') return false;
+    return DateTime.now().isAfter(estimatedCookingTime!);
+  }
+
+  // Helper method to get status color
+  String get statusColor {
+    switch (status) {
+      case 'pending':
+        return '#FFA726'; // Orange
+      case 'preparing':
+        return '#42A5F5'; // Blue
+      case 'ready':
+        return '#FF7043'; // Deep Orange
+      case 'completed':
+        return '#66BB6A'; // Green
+      case 'rejected':
+        return '#EF5350'; // Red
+      default:
+        return '#9E9E9E'; // Grey
+    }
+  }
+
+  // Helper method to get readable status text
+  String get statusText {
+    switch (status) {
+      case 'pending':
+        return 'Waiting for Confirmation';
+      case 'preparing':
+        return 'Cooking in Progress';
+      case 'ready':
+        return 'Ready for Pickup';
+      case 'completed':
+        return 'Order Completed';
+      case 'rejected':
+        return 'Order Rejected';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  // Copy with method for easy updates
+  OrderModel copyWith({
+    String? id,
+    String? customerId,
+    String? storeId,
+    String? orderNumber,
+    String? orderType,
+    String? status,
+    String? customerName,
+    String? customerPhone,
+    double? subtotal,
+    double? totalAmount,
+    String? paymentMethod,
+    String? paymentStatus,
+    String? specialInstructions,
+    DateTime? estimatedCookingTime,
+    DateTime? acceptedAt,
+    DateTime? readyAt,
+    DateTime? completedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      storeId: storeId ?? this.storeId,
+      orderNumber: orderNumber ?? this.orderNumber,
+      orderType: orderType ?? this.orderType,
+      status: status ?? this.status,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
+      subtotal: subtotal ?? this.subtotal,
+      totalAmount: totalAmount ?? this.totalAmount,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
+      estimatedCookingTime: estimatedCookingTime ?? this.estimatedCookingTime,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      readyAt: readyAt ?? this.readyAt,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

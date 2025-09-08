@@ -15,17 +15,17 @@ class AdminManageStoreController extends GetxController {
   final searchController = TextEditingController();
   final searchText = ''.obs;
 
-  // DataTable2 sorting (NEW)
+  // DataTable2 sorting
   final sortColumnIndex = 0.obs;
   final sortAscending = true.obs;
 
-  // Pagination (keeping your existing implementation)
+  // Pagination
   final currentPage = 1.obs;
   final itemsPerPage = 10;
   final totalItems = 0.obs;
   final totalPages = 0.obs;
 
-  // DataTable2 pagination (NEW - for when you switch to DataTable2)
+  // DataTable2 pagination
   final rowsPerPage = 10.obs;
   final availableRowsPerPage = [5, 10, 20, 50].obs;
 
@@ -119,7 +119,7 @@ class AdminManageStoreController extends GetxController {
           (store.phone?.toLowerCase().contains(
                 searchText.value.toLowerCase(),
               ) ??
-              false); // Added phone search
+              false);
 
       final matchesCategory =
           selectedCategory.value == 'All' ||
@@ -133,7 +133,7 @@ class AdminManageStoreController extends GetxController {
       return matchesSearch && matchesCategory && matchesStatus;
     }).toList();
 
-    // Apply sorting (NEW)
+    // Apply sorting
     _sortStores(filtered);
 
     filteredStores.value = filtered;
@@ -146,7 +146,7 @@ class AdminManageStoreController extends GetxController {
     }
   }
 
-  // NEW: Sorting functionality for DataTable2
+  // Sorting functionality for DataTable2
   void _sortStores(List<StoreModel> storeList) {
     switch (sortColumnIndex.value) {
       case 0: // Store Name
@@ -170,14 +170,21 @@ class AdminManageStoreController extends GetxController {
               : (b.address ?? '').compareTo(a.address ?? ''),
         );
         break;
-      case 3: // Status
+      case 3: // Phone
+        storeList.sort(
+          (a, b) => sortAscending.value
+              ? (a.phone ?? '').compareTo(b.phone ?? '')
+              : (b.phone ?? '').compareTo(a.phone ?? ''),
+        );
+        break;
+      case 4: // Status
         storeList.sort(
           (a, b) => sortAscending.value
               ? a.isActive.toString().compareTo(b.isActive.toString())
               : b.isActive.toString().compareTo(a.isActive.toString()),
         );
         break;
-      case 4: // Created Date
+      case 5: // Created Date
         storeList.sort(
           (a, b) => sortAscending.value
               ? a.createdAt.compareTo(b.createdAt)
@@ -187,14 +194,14 @@ class AdminManageStoreController extends GetxController {
     }
   }
 
-  // NEW: Sort method for DataTable2
+  // Sort method for DataTable2
   void sort(int columnIndex, bool ascending) {
     sortColumnIndex.value = columnIndex;
     sortAscending.value = ascending;
     filterStores();
   }
 
-  // Your existing pagination methods (keep these for compatibility)
+  // Pagination methods
   List<StoreModel> getPaginatedStores() {
     final startIndex = (currentPage.value - 1) * itemsPerPage;
     final endIndex = (startIndex + itemsPerPage).clamp(
@@ -224,7 +231,7 @@ class AdminManageStoreController extends GetxController {
     }
   }
 
-  // NEW: DataTable2 rows per page handler
+  // DataTable2 rows per page handler
   void updateRowsPerPage(int? newRowsPerPage) {
     if (newRowsPerPage != null) {
       rowsPerPage.value = newRowsPerPage;
@@ -240,7 +247,7 @@ class AdminManageStoreController extends GetxController {
           .update({'is_active': newStatus})
           .eq('id', store.id);
 
-      // Update local data
+      // Update local data - removed delivery-related fields
       final index = stores.indexWhere((s) => s.id == store.id);
       if (index != -1) {
         final updatedStore = StoreModel(
@@ -253,9 +260,10 @@ class AdminManageStoreController extends GetxController {
           address: store.address,
           phone: store.phone,
           openingHours: store.openingHours,
-          deliveryAvailable: store.deliveryAvailable,
-          dineInAvailable: store.dineInAvailable,
-          deliveryFee: store.deliveryFee,
+          // Removed delivery-related fields:
+          // deliveryAvailable: false, (always pickup only)
+          // dineInAvailable: true, (always available for pickup)
+          // deliveryFee: 0, (no delivery fees)
           minimumOrder: store.minimumOrder,
           isActive: newStatus,
           createdAt: store.createdAt,
@@ -303,9 +311,7 @@ class AdminManageStoreController extends GetxController {
     await loadStores();
   }
 
-  // NEW: Additional utility methods for better UX
-
-  // Get stores with specific status
+  // Utility methods for better UX
   List<StoreModel> getActiveStores() {
     return stores.where((store) => store.isActive).toList();
   }
@@ -314,18 +320,18 @@ class AdminManageStoreController extends GetxController {
     return stores.where((store) => !store.isActive).toList();
   }
 
-  // Get stores by category
   List<StoreModel> getStoresByCategory(String category) {
     return stores.where((store) => store.category == category).toList();
   }
 
-  // Search suggestions (for future autocomplete feature)
+  // Search suggestions for future autocomplete feature
   List<String> getSearchSuggestions() {
     final suggestions = <String>{};
     for (final store in stores) {
       suggestions.add(store.name);
       if (store.address != null) suggestions.add(store.address!);
       suggestions.add(store.category);
+      if (store.phone != null) suggestions.add(store.phone!);
     }
     return suggestions.toList()..sort();
   }
@@ -338,5 +344,28 @@ class AdminManageStoreController extends GetxController {
       'inactive': getInactiveStores().length,
       'categories': categories.length - 1, // Subtract 'All'
     };
+  }
+
+  // Additional pickup-specific methods
+  List<StoreModel> getStoresWithMinimumOrder() {
+    return stores.where((store) => store.minimumOrder > 0).toList();
+  }
+
+  double getAverageMinimumOrder() {
+    final storesWithMinOrder = getStoresWithMinimumOrder();
+    if (storesWithMinOrder.isEmpty) return 0;
+
+    final total = storesWithMinOrder.fold<double>(
+      0,
+      (sum, store) => sum + store.minimumOrder,
+    );
+    return total / storesWithMinOrder.length;
+  }
+
+  // Get stores by opening status (if you want to add this feature)
+  List<StoreModel> getCurrentlyOpenStores() {
+    // This would require implementing opening hours logic
+    // For now, just return active stores
+    return getActiveStores();
   }
 }

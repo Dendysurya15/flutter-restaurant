@@ -76,13 +76,10 @@ class CartItemController extends GetxController {
   final hasError = false.obs;
   final errorMessage = ''.obs;
 
-  // Data observables
-  final selectedOrderType = 'dine_in'.obs;
+  // Data observables (removed delivery-related fields)
   final Rx<StoreModel?> storeInfo = Rx<StoreModel?>(null);
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
   final RxMap<String, MenuItemModel> menuItems = <String, MenuItemModel>{}.obs;
-  final deliveryAddress = ''.obs;
-  final isLoadingLocation = false.obs;
   final specialInstructions = ''.obs;
   final TextEditingController instructionsController = TextEditingController();
   final Rx<PaymentMethodOption?> selectedPaymentMethod =
@@ -111,10 +108,8 @@ class CartItemController extends GetxController {
       specialInstructions.value = instructionsController.text;
     });
 
-    ever(selectedOrderType, (String orderType) {
-      print('📦 [$_instanceId] Order type changed to: $orderType');
-      _updatePaymentMethods();
-    });
+    // Setup payment methods listener (removed order type dependency)
+    _updatePaymentMethods();
 
     // Listen to cart changes from CartService
     _setupCartListener();
@@ -172,11 +167,9 @@ class CartItemController extends GetxController {
     storeInfo.value = null;
     currentUser.value = null;
     menuItems.clear();
-    deliveryAddress.value = '';
-    isLoadingLocation.value = false;
     selectedPaymentMethod.value = null;
     availablePaymentMethods.clear();
-    // Note: Don't reset specialInstructions and selectedOrderType as user might want to keep them
+    // Note: Don't reset specialInstructions as user might want to keep them
     print('✅ [$_instanceId] State reset completed');
   }
 
@@ -228,6 +221,16 @@ class CartItemController extends GetxController {
       print('💳 [$_instanceId] Updating payment methods...');
       _updatePaymentMethods();
 
+      // Retry payment methods if they failed to load
+      if (availablePaymentMethods.isEmpty) {
+        print('🔄 [$_instanceId] Payment methods empty, retrying in 500ms...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _updatePaymentMethods();
+          }
+        });
+      }
+
       print('✅ [$_instanceId] Cart data load completed successfully');
       _logControllerState('loadCartData - SUCCESS');
     } catch (e) {
@@ -274,12 +277,6 @@ class CartItemController extends GetxController {
     print('   - ID: ${currentUser.value?.id}');
     print('   - Name: ${currentUser.value?.fullName}');
     print('   - Phone: ${currentUser.value?.phone}');
-    print('   - Address: ${currentUser.value?.address}');
-
-    if (currentUser.value?.address != null) {
-      deliveryAddress.value = currentUser.value!.address!;
-      print('📍 [$_instanceId] Set delivery address: ${deliveryAddress.value}');
-    }
   }
 
   Future<void> _loadStoreInfo(String storeId) async {
@@ -302,9 +299,9 @@ class CartItemController extends GetxController {
       print('✅ [$_instanceId] Store info loaded:');
       print('   - Name: ${storeInfo.value?.name}');
       print('   - Category: ${storeInfo.value?.category}');
-      print('   - Delivery Available: ${storeInfo.value?.deliveryAvailable}');
-      print('   - Dine In Available: ${storeInfo.value?.dineInAvailable}');
-      print('   - Delivery Fee: ${storeInfo.value?.deliveryFee}');
+      print('   - Address: ${storeInfo.value?.address}');
+      print('   - Phone: ${storeInfo.value?.phone}');
+      print('   - Minimum Order: ${storeInfo.value?.minimumOrder}');
     } catch (e) {
       print('❌ [$_instanceId] Error loading store info: $e');
       rethrow;
@@ -381,12 +378,9 @@ class CartItemController extends GetxController {
     }
 
     try {
-      print(
-        '💳 [$_instanceId] Updating payment methods for order type: ${selectedOrderType.value}',
-      );
+      print('💳 [$_instanceId] Updating payment methods for pickup orders');
 
-      // Add this debug check
-      print('🔧 [$_instanceId] Checking if PaymentService is available...');
+      // Check if PaymentService is available
       final bool serviceExists = Get.isRegistered<PaymentService>();
       print('🔧 [$_instanceId] PaymentService registered: $serviceExists');
 
@@ -394,12 +388,23 @@ class CartItemController extends GetxController {
         print(
           '❌ [$_instanceId] PaymentService not registered yet, skipping payment methods update',
         );
+        availablePaymentMethods.clear();
+        selectedPaymentMethod.value = null;
         return;
       }
 
-      final methods = paymentService.getAvailablePaymentMethods(
-        selectedOrderType.value,
-      );
+      PaymentService? service;
+      try {
+        service = Get.find<PaymentService>();
+      } catch (e) {
+        print('❌ [$_instanceId] Failed to get PaymentService: $e');
+        availablePaymentMethods.clear();
+        selectedPaymentMethod.value = null;
+        return;
+      }
+
+      // Always get payment methods for pickup orders
+      final methods = service.getAvailablePaymentMethods('pickup');
       availablePaymentMethods.value = methods;
 
       print('✅ [$_instanceId] Found ${methods.length} payment methods:');
@@ -428,6 +433,8 @@ class CartItemController extends GetxController {
       }
     } catch (e) {
       print('❌ [$_instanceId] Error updating payment methods: $e');
+      availablePaymentMethods.clear();
+      selectedPaymentMethod.value = null;
     }
   }
 
@@ -458,18 +465,16 @@ class CartItemController extends GetxController {
     print('   - Store Info: ${storeInfo.value?.name ?? 'null'}');
     print('   - Current User: ${currentUser.value?.fullName ?? 'null'}');
     print('   - Menu Items Count: ${menuItems.length}');
-    print('   - Selected Order Type: ${selectedOrderType.value}');
     print(
       '   - Selected Payment Method: ${selectedPaymentMethod.value?.name ?? 'null'}',
     );
     print('   - Available Payment Methods: ${availablePaymentMethods.length}');
     print('   - Cart Items (from service): ${cartService.cartItems.length}');
-    print('   - Delivery Address: ${deliveryAddress.value}');
     print('   - Special Instructions: ${specialInstructions.value}');
     print('📊 [$_instanceId] === END STATE LOG ===');
   }
 
-  // Calculations
+  // Calculations (simplified for pickup only)
   double get subtotal {
     try {
       final cartItems = cartService.cartItems;
@@ -485,149 +490,21 @@ class CartItemController extends GetxController {
     }
   }
 
-  double get deliveryFee {
-    final fee = selectedOrderType.value == 'delivery'
-        ? (storeInfo.value?.deliveryFee ?? 5000)
-        : 0.0;
-    print(
-      '🚚 [$_instanceId] Delivery fee: $fee (order type: ${selectedOrderType.value})',
-    );
-    return fee;
-  }
-
   double get totalAmount {
-    final total = subtotal + deliveryFee;
+    // For pickup orders, total is same as subtotal (no delivery fees)
+    final total = subtotal;
     print(
-      '💰 [$_instanceId] Total amount: $total (subtotal: $subtotal + delivery: $deliveryFee)',
+      '💰 [$_instanceId] Total amount: $total (pickup only - no delivery fees)',
     );
     return total;
   }
 
-  // User actions
-  void selectOrderType(String type) {
-    print(
-      '📝 [$_instanceId] Selecting order type: $type (previous: ${selectedOrderType.value})',
-    );
-    selectedOrderType.value = type;
-  }
-
+  // User actions (removed delivery-related methods)
   void selectPaymentMethod(PaymentMethodOption method) {
     print(
       '💳 [$_instanceId] Selecting payment method: ${method.name} (${method.id})',
     );
     selectedPaymentMethod.value = method;
-  }
-
-  void getCurrentLocation() async {
-    print('📍 [$_instanceId] Getting current location...');
-    isLoadingLocation.value = true;
-
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-      deliveryAddress.value = "Current Location: 123 Street, City, State";
-
-      print('✅ [$_instanceId] Location found: ${deliveryAddress.value}');
-      Get.snackbar(
-        'Location Found',
-        'Address updated successfully',
-        backgroundColor: Colors.green.shade100,
-      );
-    } catch (e) {
-      print('❌ [$_instanceId] Error getting location: $e');
-      Get.snackbar('Error', 'Failed to get current location');
-    } finally {
-      isLoadingLocation.value = false;
-    }
-  }
-
-  void showAddressBottomSheet() {
-    print('📍 [$_instanceId] Showing address bottom sheet');
-    final TextEditingController addressController = TextEditingController();
-    addressController.text = deliveryAddress.value;
-
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.location_on, color: Colors.blue),
-                const SizedBox(width: 8),
-                const Text(
-                  'Delivery Address',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: addressController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Enter your delivery address...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: getCurrentLocation,
-                    icon: Obx(
-                      () => isLoadingLocation.value
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location),
-                    ),
-                    label: Obx(
-                      () => Text(
-                        isLoadingLocation.value
-                            ? 'Getting Location...'
-                            : 'Use Current Location',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      deliveryAddress.value = addressController.text;
-                      print(
-                        '📍 [$_instanceId] Address saved: ${deliveryAddress.value}',
-                      );
-                      Get.back();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                    ),
-                    child: const Text('Save Address'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-      isScrollControlled: true,
-    );
   }
 
   void showInstructionsBottomSheet() {
@@ -645,7 +522,7 @@ class CartItemController extends GetxController {
           children: [
             Row(
               children: [
-                const Icon(Icons.note_add, color: Colors.blue),
+                Icon(Icons.note_add, color: Colors.orange.shade600),
                 const SizedBox(width: 8),
                 const Text(
                   'Special Instructions',
@@ -673,7 +550,7 @@ class CartItemController extends GetxController {
               child: ElevatedButton(
                 onPressed: () => Get.back(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
+                  backgroundColor: Colors.orange.shade700,
                 ),
                 child: const Text('Save Instructions'),
               ),
@@ -701,7 +578,7 @@ class CartItemController extends GetxController {
           children: [
             Row(
               children: [
-                const Icon(Icons.payment, color: Colors.blue),
+                Icon(Icons.payment, color: Colors.orange.shade600),
                 const SizedBox(width: 8),
                 const Text(
                   'Select Payment Method',
@@ -730,7 +607,7 @@ class CartItemController extends GetxController {
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: isSelected
-                              ? Colors.blue.shade700
+                              ? Colors.orange.shade700
                               : Colors.grey.shade300,
                           width: isSelected ? 2 : 1,
                         ),
@@ -757,7 +634,7 @@ class CartItemController extends GetxController {
                         trailing: isSelected
                             ? Icon(
                                 Icons.check_circle,
-                                color: Colors.blue.shade700,
+                                color: Colors.orange.shade700,
                               )
                             : null,
                         onTap: () {
@@ -794,8 +671,8 @@ class CartItemController extends GetxController {
     _logControllerState('showConfirmationModal');
 
     ModalAlert.showConfirmation(
-      title: 'Confirm Order',
-      subtitle: 'Are you sure you want to place this order?',
+      title: 'Confirm Pickup Order',
+      subtitle: 'Are you sure you want to place this pickup order?',
       primaryButtonText: 'Yes, Place Order',
       secondaryButtonText: 'Cancel',
       onConfirm: () {
@@ -822,18 +699,14 @@ class CartItemController extends GetxController {
     isProcessingOrder.value = true;
 
     try {
+      // Updated for pickup-only orders
       final result = await orderService.createOrderWithPayment(
         customerId: currentUser.value!.id,
         storeId: storeInfo.value!.id,
-        orderType: selectedOrderType.value,
         customerName: currentUser.value!.fullName ?? 'Customer',
         customerPhone: currentUser.value!.phone ?? '+628123456789',
-        deliveryAddress: selectedOrderType.value == 'delivery'
-            ? deliveryAddress.value
-            : null,
         subtotal: subtotal,
-        deliveryFee: deliveryFee,
-        totalAmount: totalAmount,
+        totalAmount: totalAmount, // Same as subtotal for pickup
         paymentMethod: selectedPaymentMethod.value!.id,
         specialInstructions: specialInstructions.value.isEmpty
             ? null
@@ -887,14 +760,7 @@ class CartItemController extends GetxController {
   }
 
   bool _validateOrder() {
-    print('✅ [$_instanceId] Validating order...');
-
-    if (selectedOrderType.value == 'delivery' &&
-        deliveryAddress.value.isEmpty) {
-      print('❌ [$_instanceId] Validation failed: No delivery address');
-      Get.snackbar('Error', 'Please provide delivery address');
-      return false;
-    }
+    print('✅ [$_instanceId] Validating pickup order...');
 
     if (selectedPaymentMethod.value == null) {
       print('❌ [$_instanceId] Validation failed: No payment method selected');
@@ -916,6 +782,17 @@ class CartItemController extends GetxController {
       print('   - Current User: ${currentUser.value != null}');
       print('   - Store Info: ${storeInfo.value != null}');
       Get.snackbar('Error', 'Required information not loaded');
+      return false;
+    }
+
+    // Check minimum order amount if applicable
+    if (storeInfo.value!.minimumOrder > 0 &&
+        totalAmount < storeInfo.value!.minimumOrder) {
+      print('❌ [$_instanceId] Validation failed: Below minimum order amount');
+      Get.snackbar(
+        'Error',
+        'Minimum order amount is Rp ${storeInfo.value!.minimumOrder.toInt()}',
+      );
       return false;
     }
 

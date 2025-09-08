@@ -18,10 +18,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
-  FlutterError.onError = (FlutterErrorDetails details) {
-    print('Flutter Error: ${details.exception}');
-    print('Stack trace: ${details.stack}');
-  };
+  // FlutterError.onError = (FlutterErrorDetails details) {
+  //   print('Flutter Error: ${details.exception}');
+  //   print('Stack trace: ${details.stack}');
+  // };
 
   // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();

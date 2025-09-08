@@ -18,13 +18,14 @@ class CartItemView extends GetView<CartItemController> {
             children: [
               Text(storeName, style: const TextStyle(fontSize: 18)),
               const Text(
-                'Take Order And Pay',
+                'Order for Pickup',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
               ),
             ],
           );
         }),
-        backgroundColor: Colors.blue.shade600,
+        backgroundColor:
+            Colors.orange.shade600, // Changed to orange for restaurant theme
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -87,7 +88,7 @@ class CartItemView extends GetView<CartItemController> {
                     ElevatedButton(
                       onPressed: controller.retryLoad,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade700,
+                        backgroundColor: Colors.orange.shade700,
                       ),
                       child: const Text('Retry'),
                     ),
@@ -106,7 +107,7 @@ class CartItemView extends GetView<CartItemController> {
           return _buildEmptyCart();
         }
 
-        // Main cart content
+        // Main cart content (removed delivery sections)
         return Column(
           children: [
             Expanded(
@@ -115,19 +116,8 @@ class CartItemView extends GetView<CartItemController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildOrderTypeSection(),
+                    _buildPickupInfoSection(), // New pickup info section
                     const SizedBox(height: 20),
-                    Obx(() {
-                      if (controller.selectedOrderType.value == 'delivery') {
-                        return Column(
-                          children: [
-                            _buildDeliveryAddressSection(),
-                            const SizedBox(height: 20),
-                          ],
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }),
                     _buildPaymentMethodSection(),
                     const SizedBox(height: 20),
                     _buildSpecialInstructionsSection(),
@@ -175,7 +165,7 @@ class CartItemView extends GetView<CartItemController> {
           ElevatedButton(
             onPressed: () => Get.back(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
+              backgroundColor: Colors.orange.shade700,
               foregroundColor: Colors.white,
             ),
             child: const Text('Continue Shopping'),
@@ -185,7 +175,8 @@ class CartItemView extends GetView<CartItemController> {
     );
   }
 
-  Widget _buildOrderTypeSection() {
+  // New pickup info section to replace order type selection
+  Widget _buildPickupInfoSection() {
     return Card(
       elevation: 2,
       child: Padding(
@@ -195,148 +186,110 @@ class CartItemView extends GetView<CartItemController> {
           children: [
             Row(
               children: [
-                Icon(Icons.restaurant, color: Colors.blue.shade700),
+                Icon(Icons.store, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 const Text(
-                  'Order Type',
+                  'Pickup Information',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Obx(() {
-              return Column(
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (controller.storeInfo.value?.dineInAvailable ?? true)
-                    RadioListTile<String>(
-                      title: Row(
-                        children: [
-                          Icon(
-                            Icons.restaurant_menu,
-                            color: Colors.orange.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Dine In'),
-                        ],
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.shopping_bag,
+                        color: Colors.orange.shade700,
+                        size: 20,
                       ),
-                      subtitle: const Text('Eat at the restaurant'),
-                      value: 'dine_in',
-                      groupValue: controller.selectedOrderType.value,
-                      onChanged: (value) => controller.selectOrderType(value!),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  if (controller.storeInfo.value?.deliveryAvailable ?? true)
-                    RadioListTile<String>(
-                      title: Row(
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Pickup Order',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your order will be prepared for pickup at the restaurant',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  Obx(() {
+                    final storeInfo = controller.storeInfo.value;
+                    if (storeInfo?.address != null) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.delivery_dining,
-                            color: Colors.green.shade600,
-                            size: 20,
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                color: Colors.orange.shade700,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Pickup Address:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          const Text('Delivery'),
-                          const Spacer(),
-                          Text(
-                            'Rp.${controller.deliveryFee.toInt()}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 22),
+                            child: Text(
+                              storeInfo!.address!,
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],
-                      ),
-                      subtitle: const Text('Deliver to your location'),
-                      value: 'delivery',
-                      groupValue: controller.selectedOrderType.value,
-                      onChanged: (value) => controller.selectOrderType(value!),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                ],
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDeliveryAddressSection() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.location_on, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                const Text(
-                  'Delivery Address',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Obx(() {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: controller.deliveryAddress.value.isEmpty
-                    ? Text(
-                        'No address selected',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                  if (controller.storeInfo.value?.phone != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone,
+                          color: Colors.orange.shade700,
+                          size: 16,
                         ),
-                      )
-                    : Text(controller.deliveryAddress.value),
-              );
-            }),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: controller.getCurrentLocation,
-                    icon: Obx(
-                      () => controller.isLoadingLocation.value
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location),
+                        const SizedBox(width: 6),
+                        Text(
+                          controller.storeInfo.value!.phone!,
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    label: Obx(
-                      () => Text(
-                        controller.isLoadingLocation.value
-                            ? 'Getting Location...'
-                            : 'Current Location',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: controller.showAddressBottomSheet,
-                    icon: const Icon(Icons.edit_location),
-                    label: const Text('Edit Address'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -354,7 +307,7 @@ class CartItemView extends GetView<CartItemController> {
           children: [
             Row(
               children: [
-                Icon(Icons.payment, color: Colors.blue.shade700),
+                Icon(Icons.payment, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 const Text(
                   'Payment Method',
@@ -428,7 +381,7 @@ class CartItemView extends GetView<CartItemController> {
                 icon: const Icon(Icons.edit),
                 label: const Text('Change Payment Method'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
+                  backgroundColor: Colors.orange.shade700,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -449,7 +402,7 @@ class CartItemView extends GetView<CartItemController> {
           children: [
             Row(
               children: [
-                Icon(Icons.note_add, color: Colors.blue.shade700),
+                Icon(Icons.note_add, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 const Text(
                   'Special Instructions',
@@ -468,7 +421,7 @@ class CartItemView extends GetView<CartItemController> {
                 ),
                 child: controller.specialInstructions.value.isEmpty
                     ? Text(
-                        'Any special requests?',
+                        'Any special requests for your order?',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontStyle: FontStyle.italic,
@@ -502,7 +455,7 @@ class CartItemView extends GetView<CartItemController> {
           children: [
             Row(
               children: [
-                Icon(Icons.restaurant_menu, color: Colors.blue.shade700),
+                Icon(Icons.restaurant_menu, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 Text(
                   'Order Items from ${controller.storeInfo.value?.name ?? "Restaurant"}',
@@ -559,7 +512,7 @@ class CartItemView extends GetView<CartItemController> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            'Rp.${item.price.toInt()} each',
+                            'Rp ${_formatPrice(item.price)} each',
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 12,
@@ -592,9 +545,10 @@ class CartItemView extends GetView<CartItemController> {
                                   cartService.decrementItem(item.menuItemId);
                                 }
                               },
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.remove_circle_outline,
                                 size: 20,
+                                color: Colors.orange.shade600,
                               ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -606,23 +560,25 @@ class CartItemView extends GetView<CartItemController> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: Colors.orange.shade50,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '${item.quantity}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
+                                  color: Colors.orange.shade700,
                                 ),
                               ),
                             ),
                             IconButton(
                               onPressed: () =>
                                   cartService.incrementItem(item.menuItemId),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.add_circle_outline,
                                 size: 20,
+                                color: Colors.orange.shade600,
                               ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -633,7 +589,7 @@ class CartItemView extends GetView<CartItemController> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Rp.${(item.quantity * item.price).toInt()}',
+                      'Rp ${_formatPrice(item.quantity * item.price)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
@@ -660,7 +616,7 @@ class CartItemView extends GetView<CartItemController> {
           children: [
             Row(
               children: [
-                Icon(Icons.receipt, color: Colors.blue.shade700),
+                Icon(Icons.receipt, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
                 const Text(
                   'Order Summary',
@@ -676,20 +632,11 @@ class CartItemView extends GetView<CartItemController> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Subtotal'),
-                      Text('Rp.${controller.subtotal.toInt()}'),
+                      Text('Rp ${_formatPrice(controller.subtotal)}'),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (controller.selectedOrderType.value == 'delivery')
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Delivery Fee'),
-                        Text('Rp.${controller.deliveryFee.toInt()}'),
-                      ],
-                    ),
-                  if (controller.selectedOrderType.value == 'delivery')
-                    const SizedBox(height: 8),
+                  // Removed delivery fee section since it's pickup only
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -702,7 +649,7 @@ class CartItemView extends GetView<CartItemController> {
                         ),
                       ),
                       Text(
-                        'Rp.${controller.totalAmount.toInt()}',
+                        'Rp ${_formatPrice(controller.totalAmount)}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -745,7 +692,7 @@ class CartItemView extends GetView<CartItemController> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  'Rp.${controller.totalAmount.toInt()}',
+                  'Rp ${_formatPrice(controller.totalAmount)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -765,7 +712,7 @@ class CartItemView extends GetView<CartItemController> {
                     ? null
                     : controller.showConfirmationModal,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
+                  backgroundColor: Colors.orange.shade700,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -777,7 +724,7 @@ class CartItemView extends GetView<CartItemController> {
                       ? 'Loading...'
                       : controller.hasError.value
                       ? 'Error - Please Retry'
-                      : 'Take Order & Pay',
+                      : 'Place Order & Pay',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -789,5 +736,14 @@ class CartItemView extends GetView<CartItemController> {
         ],
       ),
     );
+  }
+
+  String _formatPrice(double price) {
+    return price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 }

@@ -102,7 +102,7 @@ class PaymentController extends GetxController {
 
     print('Auto launching payment UI...');
     isPaymentUILaunched.value = true;
-    await Future.delayed(Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 500));
     processPayment();
   }
 
@@ -161,7 +161,7 @@ class PaymentController extends GetxController {
   void _checkPaymentStatus(String url) {
     print('Checking payment status from URL: $url');
 
-    // Success patterns - including Midtrans sandbox success URLs
+    // Success patterns
     if (url.contains('status_code=200') ||
         url.contains('transaction_status=settlement') ||
         url.contains('transaction_status=capture') ||
@@ -213,9 +213,10 @@ class PaymentController extends GetxController {
           transactionId: 'midtrans_${DateTime.now().millisecondsSinceEpoch}',
         );
 
+        // Update order status to 'pending' (waiting for restaurant to accept)
         await orderService.updateOrderAndPaymentStatus(
           orderId: payment.orderId,
-          orderStatus: 'preparing',
+          orderStatus: 'pending', // Restaurant needs to accept first
           paymentStatus: 'paid',
         );
 
@@ -223,9 +224,10 @@ class PaymentController extends GetxController {
 
         Get.snackbar(
           'Payment Success',
-          result['message'],
+          'Payment completed! Your order is now waiting for restaurant confirmation.',
           backgroundColor: Colors.green,
           colorText: Colors.white,
+          duration: const Duration(seconds: 4),
         );
 
         Get.offAllNamed(Routes.HOME);

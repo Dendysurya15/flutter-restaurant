@@ -42,7 +42,10 @@ class HistoryOrdersController extends GetxController
       print('Step 1: super.onInit() completed');
 
       // Initialize tab controller
-      tabController = TabController(length: 5, vsync: this);
+      tabController = TabController(
+        length: 4,
+        vsync: this,
+      ); // Changed to 4 tabs
       print('Step 2: TabController created');
 
       tabController.addListener(() {
@@ -75,7 +78,6 @@ class HistoryOrdersController extends GetxController
     try {
       isLoading.value = true;
 
-      // TODO: Replace with actual API call
       final orders = await _fetchOrdersFromAPI();
 
       allOrders.value = orders;
@@ -133,7 +135,7 @@ class HistoryOrdersController extends GetxController
   }
 
   bool _isFailed(OrderModel order) {
-    final failedStatuses = ['cancelled', 'declined', 'failed'];
+    final failedStatuses = ['cancelled', 'rejected', 'failed'];
     return failedStatuses.contains(order.status.toLowerCase()) ||
         order.paymentStatus == 'expired';
   }
@@ -164,7 +166,7 @@ class HistoryOrdersController extends GetxController
           .toList();
     } catch (e) {
       print('Error fetching orders from Supabase: $e');
-      return []; // Return empty list instead of mock data
+      return [];
     }
   }
 
@@ -220,7 +222,7 @@ class HistoryOrdersController extends GetxController
           arguments: {
             'order': order,
             'payment': payment,
-            'is_expired': remainingSeconds <= 0, // Pass expiration status
+            'is_expired': remainingSeconds <= 0,
           },
         );
       }
@@ -279,28 +281,32 @@ class HistoryOrdersController extends GetxController
           ),
           const SizedBox(height: 16),
 
-          // Order Info
+          // Order Info (removed delivery fields)
           _buildDetailRow('Customer', order.customerName),
           _buildDetailRow('Phone', order.customerPhone),
-          _buildDetailRow(
-            'Order Type',
-            order.orderType == 'delivery' ? 'Delivery' : 'Dine In',
-          ),
-          if (order.deliveryAddress != null)
-            _buildDetailRow('Address', order.deliveryAddress!),
+          _buildDetailRow('Order Type', 'Pickup'), // Always pickup
           _buildDetailRow('Status', order.status.toUpperCase()),
           _buildDetailRow('Payment Status', order.paymentStatus.toUpperCase()),
           _buildDetailRow('Payment Method', order.paymentMethod.toUpperCase()),
 
+          // Estimated cooking time if available
+          if (order.estimatedCookingTime != null)
+            _buildDetailRow(
+              'Est. Ready Time',
+              _formatDateTime(order.estimatedCookingTime!),
+            ),
+
+          // Special instructions if any
+          if (order.specialInstructions?.isNotEmpty == true)
+            _buildDetailRow('Special Instructions', order.specialInstructions!),
+
           const Divider(height: 32),
 
-          // Order Summary
-          _buildDetailRow('Subtotal', 'Rp.${order.subtotal.toInt()}'),
-          if (order.deliveryFee > 0)
-            _buildDetailRow('Delivery Fee', 'Rp.${order.deliveryFee.toInt()}'),
+          // Order Summary (removed delivery fee)
+          _buildDetailRow('Subtotal', 'Rp ${_formatPrice(order.subtotal)}'),
           _buildDetailRow(
             'Total',
-            'Rp.${order.totalAmount.toInt()}',
+            'Rp ${_formatPrice(order.totalAmount)}',
             isTotal: true,
           ),
 
@@ -363,6 +369,19 @@ class HistoryOrdersController extends GetxController
         ],
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatPrice(double price) {
+    return price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   // Method to load pending payments on app start
