@@ -95,232 +95,285 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
   }
 
   Widget _buildOrderCard(dynamic order) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: _getStatusColor(order.status).withOpacity(0.3),
-          width: 1,
+    return Obx(() {
+      // Check if this order is newly received
+      final isNewOrder = controller.newOrderIds.contains(order.id);
+      final borderColor = isNewOrder
+          ? Colors.green
+          : _getStatusColor(order.status).withOpacity(0.3);
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: borderColor, width: isNewOrder ? 3 : 1),
         ),
-      ),
-      child: InkWell(
-        onTap: () => _showOrderDetails(order),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with order number and status
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order #${order.orderNumber}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+        child: InkWell(
+          onTap: () => _showOrderDetails(order),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // New Order Label (shows for 4 seconds)
+                if (isNewOrder)
                   Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(order.status),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      _getStatusText(order.status),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.fiber_new,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'NEW ORDER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Header with order number and status
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Order #${order.orderNumber}',
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Customer info
-              Row(
-                children: [
-                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    order.customerName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.phone, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    order.customerPhone,
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Order details
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatDateTime(order.createdAt),
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Rp ${_formatPrice(order.totalAmount)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Estimated cooking time if available
-              if (order.estimatedCookingTime != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 16, color: Colors.orange.shade600),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Est. ready: ${_formatDateTime(order.estimatedCookingTime)}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.orange.shade700,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(order.status),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getStatusText(order.status),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
+                const SizedBox(height: 12),
 
-              // Special instructions if any
-              if (order.specialInstructions?.isNotEmpty == true) ...[
+                // Customer info
+                Row(
+                  children: [
+                    Icon(Icons.person, size: 16, color: Colors.grey.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      order.customerName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.phone, size: 16, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(
+                      order.customerPhone,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                // Order details
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDateTime(order.createdAt),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Rp ${_formatPrice(order.totalAmount)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Estimated cooking time if available
+                if (order.estimatedCookingTime != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      Icon(Icons.note, size: 16, color: Colors.amber.shade700),
+                      Icon(
+                        Icons.timer,
+                        size: 16,
+                        color: Colors.orange.shade600,
+                      ),
                       const SizedBox(width: 8),
+                      Text(
+                        'Est. ready: ${_formatDateTime(order.estimatedCookingTime)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Special instructions if any
+                if (order.specialInstructions?.isNotEmpty == true) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.note,
+                          size: 16,
+                          color: Colors.amber.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.specialInstructions!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Action buttons based on status
+                if (order.status == 'pending') ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
                       Expanded(
-                        child: Text(
-                          order.specialInstructions!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.amber.shade800,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _rejectOrder(order),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Reject'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _acceptOrder(order),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Accept & Start Cooking'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-
-              // Action buttons based on status
-              if (order.status == 'pending') ...[
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _rejectOrder(order),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Reject'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                ] else if (order.status == 'preparing') ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _markAsReady(order),
+                      icon: const Icon(Icons.restaurant),
+                      label: const Text('Mark as Ready'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _acceptOrder(order),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Accept & Start Cooking'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                  ),
+                ] else if (order.status == 'ready') ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _markAsCompleted(order),
+                      icon: const Icon(Icons.done_all),
+                      label: const Text('Mark as Completed'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ] else if (order.status == 'preparing') ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _markAsReady(order),
-                    icon: const Icon(Icons.restaurant),
-                    label: const Text('Mark as Ready'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
                   ),
-                ),
-              ] else if (order.status == 'ready') ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _markAsCompleted(order),
-                    icon: const Icon(Icons.done_all),
-                    label: const Text('Mark as Completed'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Color _getStatusColor(String status) {
