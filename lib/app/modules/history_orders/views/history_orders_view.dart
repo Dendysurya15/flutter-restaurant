@@ -157,212 +157,300 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
   }
 
   Widget _buildOrderCard(OrderModel order) {
-    // Check if payment is expired (15 minutes = 900 seconds)
-    final timeSinceCreated = DateTime.now().difference(order.createdAt);
-    final isExpired = timeSinceCreated.inSeconds > 900;
+    return Obx(() {
+      // Check if payment is expired (15 minutes = 900 seconds)
+      final timeSinceCreated = DateTime.now().difference(order.createdAt);
+      final isExpired = timeSinceCreated.inSeconds > 900;
 
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
+      // Real-time highlighting
+      final isNewOrder = controller.newOrderIds.contains(order.id);
+      final isUpdatedOrder = controller.updatedOrderIds.contains(order.id);
 
-    // Updated status logic for pickup-only restaurant
-    if (order.paymentStatus == 'pending' && !isExpired) {
-      statusColor = Colors.orange;
-      statusText = 'Need Payment';
-      statusIcon = Icons.payment;
-    } else if (order.paymentStatus == 'pending' && isExpired) {
-      statusColor = Colors.red;
-      statusText = 'Expired';
-      statusIcon = Icons.timer_off;
-    } else if (order.status == 'completed') {
-      statusColor = Colors.green;
-      statusText = 'Completed';
-      statusIcon = Icons.check_circle;
-    } else if (order.status == 'rejected') {
-      statusColor = Colors.red;
-      statusText = 'Rejected';
-      statusIcon = Icons.cancel;
-    } else if (order.status == 'preparing') {
-      statusColor = Colors.blue;
-      statusText = 'Cooking';
-      statusIcon = Icons.restaurant;
-    } else if (order.status == 'ready') {
-      statusColor = Colors.purple;
-      statusText = 'Ready for Pickup';
-      statusIcon = Icons.shopping_bag;
-    } else if (order.status == 'pending') {
-      statusColor = Colors.amber;
-      statusText = 'Pending';
-      statusIcon = Icons.hourglass_empty;
-    } else {
-      statusColor = Colors.grey;
-      statusText = 'Unknown';
-      statusIcon = Icons.help_outline;
-    }
+      Color statusColor;
+      String statusText;
+      IconData statusIcon;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withOpacity(0.3), width: 1),
-      ),
-      child: InkWell(
-        onTap: () {
-          if (order.paymentStatus == 'pending') {
-            // Go to payment view (whether expired or not)
-            controller.navigateToPayment(order);
-          } else {
-            // Completed/rejected orders - show details
-            controller.showOrderDetails(order);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order #${order.orderNumber}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+      // Updated status logic for pickup-only restaurant
+      if (order.paymentStatus == 'pending' && !isExpired) {
+        statusColor = Colors.orange;
+        statusText = 'Need Payment';
+        statusIcon = Icons.payment;
+      } else if (order.paymentStatus == 'pending' && isExpired) {
+        statusColor = Colors.red;
+        statusText = 'Expired';
+        statusIcon = Icons.timer_off;
+      } else if (order.status == 'completed') {
+        statusColor = Colors.green;
+        statusText = 'Completed';
+        statusIcon = Icons.check_circle;
+      } else if (order.status == 'rejected') {
+        statusColor = Colors.red;
+        statusText = 'Rejected';
+        statusIcon = Icons.cancel;
+      } else if (order.status == 'preparing') {
+        statusColor = Colors.blue;
+        statusText = 'Cooking';
+        statusIcon = Icons.restaurant;
+      } else if (order.status == 'ready') {
+        statusColor = Colors.purple;
+        statusText = 'Ready for Pickup';
+        statusIcon = Icons.shopping_bag;
+      } else if (order.status == 'pending') {
+        statusColor = Colors.amber;
+        statusText = 'Pending';
+        statusIcon = Icons.hourglass_empty;
+      } else {
+        statusColor = Colors.grey;
+        statusText = 'Unknown';
+        statusIcon = Icons.help_outline;
+      }
+
+      // Determine border color with real-time highlighting
+      Color borderColor;
+      int borderWidth = 1;
+
+      if (isNewOrder) {
+        borderColor = Colors.green;
+        borderWidth = 3;
+      } else if (isUpdatedOrder) {
+        borderColor = Colors.blue;
+        borderWidth = 3;
+      } else {
+        borderColor = statusColor.withOpacity(0.3);
+      }
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: borderColor, width: borderWidth.toDouble()),
+        ),
+        child: InkWell(
+          onTap: () {
+            if (order.paymentStatus == 'pending') {
+              // Go to payment view (whether expired or not)
+              controller.navigateToPayment(order);
+            } else {
+              // Completed/rejected orders - show details
+              controller.showOrderDetails(order);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // New Order Badge (only for new orders)
+                if (isNewOrder)
                   Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      border: Border.all(color: statusColor),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(statusIcon, size: 14, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
+                        const Icon(
+                          Icons.fiber_new,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'NEW ORDER',
                           style: TextStyle(
-                            color: statusColor,
+                            color: Colors.white,
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
 
-              // Customer info
-              Row(
-                children: [
-                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    order.customerName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade700,
+                // Updated Order Badge (only for updated orders)
+                if (isUpdatedOrder && !isNewOrder)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.update, color: Colors.white, size: 16),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'ORDER UPDATED',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
 
-              // Order details
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                // Header row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Order #${order.orderNumber}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        border: Border.all(color: statusColor),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 14, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Customer info
+                Row(
+                  children: [
+                    Icon(Icons.person, size: 16, color: Colors.grey.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      order.customerName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Order details
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatDate(order.createdAt),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Rp ${_formatPrice(order.totalAmount)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Timeline progress for ongoing orders (auto-updates with real-time)
+                if (order.status == 'pending' ||
+                    order.status == 'preparing' ||
+                    order.status == 'ready') ...[
+                  const SizedBox(height: 16),
+                  _buildOrderTimeline(order.status),
+                ],
+
+                // Estimated cooking time if available
+                if (order.estimatedCookingTime != null) ...[
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Icon(
-                        Icons.access_time,
+                        Icons.timer,
                         size: 16,
-                        color: Colors.grey.shade600,
+                        color: Colors.orange.shade600,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _formatDate(order.createdAt),
+                        'Est. ready: ${_formatTime(order.estimatedCookingTime!)}',
                         style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                  Text(
-                    'Rp ${_formatPrice(order.totalAmount)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
+                ],
+
+                // Payment timer for pending orders
+                if (order.paymentStatus == 'pending' && !isExpired) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.payment, size: 16, color: Colors.red.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Payment expires in: ${_getPaymentTimeLeft(order.createdAt)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-
-              // Timeline progress for ongoing orders
-              if (order.status == 'pending' ||
-                  order.status == 'preparing' ||
-                  order.status == 'ready') ...[
-                const SizedBox(height: 16),
-                _buildOrderTimeline(order.status),
               ],
-
-              // Estimated cooking time if available
-              if (order.estimatedCookingTime != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 16, color: Colors.orange.shade600),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Est. ready: ${_formatTime(order.estimatedCookingTime!)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              // Payment timer for pending orders
-              if (order.paymentStatus == 'pending' && !isExpired) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.payment, size: 16, color: Colors.red.shade600),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Payment expires in: ${_getPaymentTimeLeft(order.createdAt)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildOrderTimeline(String currentStatus) {

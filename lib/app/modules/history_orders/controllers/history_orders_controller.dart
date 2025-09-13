@@ -12,8 +12,9 @@ class HistoryOrdersController extends GetxController
     with GetSingleTickerProviderStateMixin {
   final AuthService authService = Get.find<AuthService>();
   final PaymentTimerService timerService = Get.find<PaymentTimerService>();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Tab controller (changed to 2 tabs)
+  // Tab controller
   late TabController tabController;
   final selectedTabIndex = 0.obs;
 
@@ -21,10 +22,16 @@ class HistoryOrdersController extends GetxController
   final isLoading = false.obs;
   final isRefreshing = false.obs;
 
-  // Orders data (simplified to just allOrders)
+  // Orders data
   final allOrders = <OrderModel>[].obs;
 
-  // Counts for badges (optional)
+  // Real-time functionality
+  final newOrderIds = <String>[].obs;
+  final updatedOrderIds = <String>[].obs;
+  RealtimeChannel? _ordersSubscription;
+  String? _currentUserId;
+
+  // Counts for badges
   final historyCount = 0.obs;
   final ongoingCount = 0.obs;
 
@@ -34,11 +41,8 @@ class HistoryOrdersController extends GetxController
       super.onInit();
       print('Step 1: super.onInit() completed');
 
-      // Initialize tab controller with 2 tabs
-      tabController = TabController(
-        length: 2, // Changed from 4 to 2
-        vsync: this,
-      );
+      // Initialize tab controller
+      tabController = TabController(length: 2, vsync: this);
       print('Step 2: TabController created');
 
       tabController.addListener(() {
@@ -46,9 +50,12 @@ class HistoryOrdersController extends GetxController
       });
       print('Step 3: TabController listener added');
 
-      // Load orders
-      loadOrders();
-      print('Step 4: loadOrders() called');
+      // Get current user ID and setup real-time
+      _getCurrentUserId().then((_) {
+        loadOrders();
+        _setupRealtimeSubscription();
+      });
+      print('Step 4: User ID and real-time setup initiated');
 
       // Listen to timer service updates
       ever(timerService.activePayments, (_) {
@@ -61,8 +68,128 @@ class HistoryOrdersController extends GetxController
     }
   }
 
+  // Get current user ID
+  Future<void> _getCurrentUserId() async {
+    _currentUserId = authService.currentUser?.id;
+    print('🏪 User ID found: $_currentUserId');
+  }
+
+  // Setup real-time subscription for user's orders
+  void _setupRealtimeSubscription() {
+    if (_currentUserId == null) {
+      print('❌ Cannot setup realtime: No user ID');
+      return;
+    }
+
+    print('🔴 Setting up real-time subscription for user: $_currentUserId');
+
+    _ordersSubscription = _supabase
+        .channel('user-orders-$_currentUserId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'customer_id',
+            value: _currentUserId!,
+          ),
+          callback: _handleRealtimeChange,
+        )
+        .subscribe((status, [error]) {
+          print('📡 Realtime status: $status');
+          if (error != null) {
+            print('❌ Realtime error: $error');
+          }
+        });
+  }
+
+  // Handle real-time database changes
+  void _handleRealtimeChange(PostgresChangePayload payload) {
+    print('🔴 Real-time change detected: ${payload.eventType}');
+
+    switch (payload.eventType) {
+      case PostgresChangeEvent.insert:
+        _handleNewOrder(payload.newRecord);
+        break;
+      case PostgresChangeEvent.update:
+        _handleOrderUpdate(payload.newRecord);
+        break;
+      case PostgresChangeEvent.delete:
+        _handleOrderDelete(payload.oldRecord);
+        break;
+      default:
+        print('Unknown event type: ${payload.eventType}');
+        break;
+    }
+  }
+
+  // Handle new order insertion
+  void _handleNewOrder(Map<String, dynamic> orderData) {
+    print('🎉 NEW ORDER received via real-time!');
+
+    try {
+      final newOrder = OrderModel.fromJson(orderData);
+
+      // Add to new orders list for UI highlighting (green border)
+      if (!newOrderIds.contains(newOrder.id)) {
+        newOrderIds.add(newOrder.id);
+
+        // Remove highlighting after 10 seconds
+        Future.delayed(const Duration(seconds: 10), () {
+          newOrderIds.remove(newOrder.id);
+        });
+      }
+
+      // Refresh the orders list
+      loadOrders();
+    } catch (e) {
+      print('❌ Error processing new order: $e');
+    }
+  }
+
+  // Handle order updates (status changes)
+  void _handleOrderUpdate(Map<String, dynamic> orderData) {
+    print('📝 ORDER UPDATED via real-time!');
+
+    try {
+      final updatedOrder = OrderModel.fromJson(orderData);
+
+      // Add to updated orders list for UI highlighting (blue border)
+      if (!updatedOrderIds.contains(updatedOrder.id)) {
+        updatedOrderIds.add(updatedOrder.id);
+
+        // Remove highlighting after 8 seconds
+        Future.delayed(const Duration(seconds: 8), () {
+          updatedOrderIds.remove(updatedOrder.id);
+        });
+      }
+
+      // Remove from new orders if it was there
+      newOrderIds.remove(updatedOrder.id);
+
+      // Refresh orders
+      loadOrders();
+    } catch (e) {
+      print('❌ Error processing order update: $e');
+    }
+  }
+
+  // Handle order deletion
+  void _handleOrderDelete(Map<String, dynamic>? oldRecord) {
+    print('🗑️ ORDER DELETED via real-time!');
+
+    if (oldRecord != null) {
+      final deletedOrderId = oldRecord['id'] as String;
+      newOrderIds.remove(deletedOrderId);
+      updatedOrderIds.remove(deletedOrderId);
+      loadOrders();
+    }
+  }
+
   @override
   void onClose() {
+    _ordersSubscription?.unsubscribe();
     tabController.dispose();
     super.onClose();
   }
@@ -76,7 +203,6 @@ class HistoryOrdersController extends GetxController
       _updateCounts();
     } catch (e) {
       print('Error loading orders: $e');
-      // TODO: Show error toast
     } finally {
       isLoading.value = false;
     }
@@ -243,10 +369,10 @@ class HistoryOrdersController extends GetxController
           ),
           const SizedBox(height: 16),
 
-          // Order Info (removed delivery fields)
+          // Order Info
           _buildDetailRow('Customer', order.customerName),
           _buildDetailRow('Phone', order.customerPhone),
-          _buildDetailRow('Order Type', 'Pickup'), // Always pickup
+          _buildDetailRow('Order Type', 'Pickup'),
           _buildDetailRow('Status', order.status.toUpperCase()),
           _buildDetailRow('Payment Status', order.paymentStatus.toUpperCase()),
           _buildDetailRow('Payment Method', order.paymentMethod.toUpperCase()),
@@ -264,7 +390,7 @@ class HistoryOrdersController extends GetxController
 
           const Divider(height: 32),
 
-          // Order Summary (removed delivery fee)
+          // Order Summary
           _buildDetailRow('Subtotal', 'Rp ${_formatPrice(order.subtotal)}'),
           _buildDetailRow(
             'Total',
