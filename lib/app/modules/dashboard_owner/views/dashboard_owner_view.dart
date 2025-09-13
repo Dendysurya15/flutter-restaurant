@@ -17,11 +17,36 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
           centerTitle: true,
           automaticallyImplyLeading: false,
           actions: [
-            // Test button for simulating new orders
-            IconButton(
-              onPressed: _simulateNewOrder,
-              icon: const Icon(Icons.add_alert),
-              tooltip: 'Simulate New Order',
+            // Refresh button
+            Obx(
+              () => IconButton(
+                onPressed: controller.isLoading.value
+                    ? null
+                    : () => controller.manualRefresh(),
+                icon: controller.isLoading.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                tooltip: 'Refresh Orders',
+              ),
+            ),
+            // Real-time connection status indicator
+            Obx(
+              () => Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  controller.isRealtimeConnected.value
+                      ? Icons.wifi
+                      : Icons.wifi_off,
+                  color: controller.isRealtimeConnected.value
+                      ? Colors.green
+                      : Colors.red,
+                  size: 20,
+                ),
+              ),
             ),
           ],
           bottom: const TabBar(
@@ -105,13 +130,12 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: _simulateNewOrder,
-                  icon: const Icon(Icons.add_alert),
-                  label: const Text('Test New Order'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                Text(
+                  'Auto-refreshing every 10 seconds...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade400,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
@@ -596,75 +620,4 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
   void _markAsCompleted(dynamic order) {
     controller.markOrderAsCompleted(order.id);
   }
-
-  void _simulateNewOrder() {
-    // Check if you have existing orders to highlight
-    if (controller.allOrders.isNotEmpty) {
-      // Get the first pending order (or any order)
-      final firstOrder = controller.allOrders.first;
-      final testOrderId = firstOrder.id;
-
-      // Add to newOrderIds to trigger green border and badge
-      if (!controller.newOrderIds.contains(testOrderId)) {
-        controller.newOrderIds.add(testOrderId);
-
-        // Show toast notification
-        if (Get.context != null) {
-          ToastHelper.showToast(
-            context: Get.context!,
-            title: "🔔 TEST: New Order Simulation!",
-            description:
-                "Highlighting existing order #${firstOrder.orderNumber}\nThis tests the green border and badge",
-            type: ToastificationType.info,
-          );
-        }
-
-        // Remove highlighting after 5 seconds
-        Future.delayed(const Duration(seconds: 5), () {
-          controller.newOrderIds.remove(testOrderId);
-        });
-
-        print('🧪 Simulated highlighting for existing order: $testOrderId');
-      }
-    } else {
-      // No existing orders, just show toast
-      if (Get.context != null) {
-        ToastHelper.showToast(
-          context: Get.context!,
-          title: "🔔 TEST: New Order Simulation!",
-          description:
-              "No existing orders to highlight. Create a real order first to see the green border and NEW ORDER badge effects.",
-          type: ToastificationType.warning,
-        );
-      }
-      print('🧪 No existing orders to simulate highlighting on');
-    }
-  }
-}
-
-// Simple fake order class for testing
-class FakeOrder {
-  final String id;
-  final String orderNumber;
-  final String customerName;
-  final String customerPhone;
-  final String status;
-  final double totalAmount;
-  final DateTime createdAt;
-  final String? specialInstructions;
-  final DateTime? estimatedCookingTime;
-  final String? paymentMethod;
-
-  FakeOrder({
-    required this.id,
-    required this.orderNumber,
-    required this.customerName,
-    required this.customerPhone,
-    required this.status,
-    required this.totalAmount,
-    required this.createdAt,
-    this.specialInstructions,
-    this.estimatedCookingTime,
-    this.paymentMethod = 'online',
-  });
 }
