@@ -13,7 +13,7 @@ class HistoryOrdersController extends GetxController
   final AuthService authService = Get.find<AuthService>();
   final PaymentTimerService timerService = Get.find<PaymentTimerService>();
 
-  // Tab controller
+  // Tab controller (changed to 2 tabs)
   late TabController tabController;
   final selectedTabIndex = 0.obs;
 
@@ -21,19 +21,12 @@ class HistoryOrdersController extends GetxController
   final isLoading = false.obs;
   final isRefreshing = false.obs;
 
-  // Orders data
+  // Orders data (simplified to just allOrders)
   final allOrders = <OrderModel>[].obs;
-  final needPayOrders = <OrderModel>[].obs;
-  final ongoingOrders = <OrderModel>[].obs;
-  final completeOrders = <OrderModel>[].obs;
-  final failedOrders = <OrderModel>[].obs;
 
-  // Counts for badges
-  final allOrdersCount = 0.obs;
-  final needPayCount = 0.obs;
+  // Counts for badges (optional)
+  final historyCount = 0.obs;
   final ongoingCount = 0.obs;
-  final completeCount = 0.obs;
-  final failedCount = 0.obs;
 
   @override
   void onInit() {
@@ -41,11 +34,11 @@ class HistoryOrdersController extends GetxController
       super.onInit();
       print('Step 1: super.onInit() completed');
 
-      // Initialize tab controller
+      // Initialize tab controller with 2 tabs
       tabController = TabController(
-        length: 4,
+        length: 2, // Changed from 4 to 2
         vsync: this,
-      ); // Changed to 4 tabs
+      );
       print('Step 2: TabController created');
 
       tabController.addListener(() {
@@ -79,9 +72,7 @@ class HistoryOrdersController extends GetxController
       isLoading.value = true;
 
       final orders = await _fetchOrdersFromAPI();
-
       allOrders.value = orders;
-      _categorizeOrders();
       _updateCounts();
     } catch (e) {
       print('Error loading orders: $e');
@@ -100,52 +91,23 @@ class HistoryOrdersController extends GetxController
     }
   }
 
-  void _categorizeOrders() {
-    needPayOrders.clear();
-    ongoingOrders.clear();
-    completeOrders.clear();
-    failedOrders.clear();
-
-    for (final order in allOrders) {
-      if (_isNeedPayment(order)) {
-        needPayOrders.add(order);
-      } else if (_isOngoing(order)) {
-        ongoingOrders.add(order);
-      } else if (_isCompleted(order)) {
-        completeOrders.add(order);
-      } else if (_isFailed(order)) {
-        failedOrders.add(order);
-      }
-    }
-  }
-
-  bool _isNeedPayment(OrderModel order) {
-    return order.paymentStatus == 'pending' &&
-        (order.status == 'pending' || order.status == 'confirmed');
-  }
-
-  bool _isOngoing(OrderModel order) {
-    final ongoingStatuses = ['confirmed', 'accepted', 'preparing', 'ready'];
-    return ongoingStatuses.contains(order.status.toLowerCase()) &&
-        order.paymentStatus == 'paid';
-  }
-
-  bool _isCompleted(OrderModel order) {
-    return order.status.toLowerCase() == 'completed';
-  }
-
-  bool _isFailed(OrderModel order) {
-    final failedStatuses = ['cancelled', 'rejected', 'failed'];
-    return failedStatuses.contains(order.status.toLowerCase()) ||
-        order.paymentStatus == 'expired';
-  }
-
   void _updateCounts() {
-    allOrdersCount.value = allOrders.length;
-    needPayCount.value = needPayOrders.length;
-    ongoingCount.value = ongoingOrders.length;
-    completeCount.value = completeOrders.length;
-    failedCount.value = failedOrders.length;
+    // History: completed + rejected
+    historyCount.value = allOrders
+        .where(
+          (order) => order.status == 'completed' || order.status == 'rejected',
+        )
+        .length;
+
+    // Ongoing: pending + preparing + ready
+    ongoingCount.value = allOrders
+        .where(
+          (order) =>
+              order.status == 'pending' ||
+              order.status == 'preparing' ||
+              order.status == 'ready',
+        )
+        .length;
   }
 
   Future<List<OrderModel>> _fetchOrdersFromAPI() async {
@@ -313,7 +275,7 @@ class HistoryOrdersController extends GetxController
           const SizedBox(height: 24),
 
           // Action buttons
-          if (_isNeedPayment(order))
+          if (order.paymentStatus == 'pending')
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

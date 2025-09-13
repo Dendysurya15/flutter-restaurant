@@ -10,23 +10,42 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Order History'),
-          backgroundColor: Colors
-              .orange
-              .shade700, // Changed to orange to match restaurant theme
+          backgroundColor: Colors.orange.shade700,
           foregroundColor: Colors.white,
-          bottom: const TabBar(
+          actions: [
+            // Refresh button
+            Obx(
+              () => IconButton(
+                onPressed: controller.isLoading.value
+                    ? null
+                    : () => controller.refreshOrders(),
+                icon: controller.isLoading.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+                tooltip: 'Refresh Orders',
+              ),
+            ),
+          ],
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(text: 'All'),
-              Tab(text: 'Ongoing'),
-              Tab(text: 'Completed'),
-              Tab(text: 'Failed'),
+              const Tab(text: 'History'), // No badge for history
+              Obx(
+                () => _buildTabWithBadge('Ongoing', _getOngoingOrders().length),
+              ), // Badge only for ongoing
             ],
           ),
         ),
@@ -37,10 +56,8 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
 
           return TabBarView(
             children: [
-              _buildOrderList(controller.allOrders, 'No orders found'),
+              _buildOrderList(_getHistoryOrders(), 'No order history'),
               _buildOrderList(_getOngoingOrders(), 'No ongoing orders'),
-              _buildOrderList(_getCompletedOrders(), 'No completed orders'),
-              _buildOrderList(_getFailedOrders(), 'No failed orders'),
             ],
           );
         }),
@@ -48,27 +65,51 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
     );
   }
 
+  // Badge method for tabs
+  Widget _buildTabWithBadge(String title, int count) {
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title),
+          if (count > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              child: Text(
+                count > 99 ? '99+' : count.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // History orders: completed + rejected
+  List<OrderModel> _getHistoryOrders() {
+    return controller.allOrders.where((order) {
+      return order.status == 'completed' || order.status == 'rejected';
+    }).toList();
+  }
+
+  // Ongoing orders: pending + preparing + ready
   List<OrderModel> _getOngoingOrders() {
     return controller.allOrders.where((order) {
-      return order.paymentStatus == 'pending' ||
-          (order.paymentStatus == 'paid' &&
-              order.status != 'completed' &&
-              order.status != 'rejected' &&
-              order.status != 'failed');
-    }).toList();
-  }
-
-  List<OrderModel> _getCompletedOrders() {
-    return controller.allOrders.where((order) {
-      return order.status == 'completed' && order.paymentStatus == 'paid';
-    }).toList();
-  }
-
-  List<OrderModel> _getFailedOrders() {
-    return controller.allOrders.where((order) {
-      return order.status == 'rejected' ||
-          order.status == 'failed' ||
-          order.paymentStatus == 'expired';
+      return order.status == 'pending' ||
+          order.status == 'preparing' ||
+          order.status == 'ready';
     }).toList();
   }
 
@@ -94,7 +135,7 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start ordering to see your history here',
+              'Orders will appear here based on their status',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
             ),
           ],
@@ -137,9 +178,9 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
       statusColor = Colors.green;
       statusText = 'Completed';
       statusIcon = Icons.check_circle;
-    } else if (order.status == 'rejected' || order.status == 'failed') {
+    } else if (order.status == 'rejected') {
       statusColor = Colors.red;
-      statusText = 'Failed';
+      statusText = 'Rejected';
       statusIcon = Icons.cancel;
     } else if (order.status == 'preparing') {
       statusColor = Colors.blue;
@@ -149,10 +190,14 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
       statusColor = Colors.purple;
       statusText = 'Ready for Pickup';
       statusIcon = Icons.shopping_bag;
-    } else {
+    } else if (order.status == 'pending') {
       statusColor = Colors.amber;
-      statusText = 'Processing';
+      statusText = 'Pending';
       statusIcon = Icons.hourglass_empty;
+    } else {
+      statusColor = Colors.grey;
+      statusText = 'Unknown';
+      statusIcon = Icons.help_outline;
     }
 
     return Card(
@@ -168,7 +213,7 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
             // Go to payment view (whether expired or not)
             controller.navigateToPayment(order);
           } else {
-            // Completed/failed orders - show details
+            // Completed/rejected orders - show details
             controller.showOrderDetails(order);
           }
         },
@@ -268,6 +313,14 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
                 ],
               ),
 
+              // Timeline progress for ongoing orders
+              if (order.status == 'pending' ||
+                  order.status == 'preparing' ||
+                  order.status == 'ready') ...[
+                const SizedBox(height: 16),
+                _buildOrderTimeline(order.status),
+              ],
+
               // Estimated cooking time if available
               if (order.estimatedCookingTime != null) ...[
                 const SizedBox(height: 8),
@@ -308,6 +361,117 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildOrderTimeline(String currentStatus) {
+    final steps = [
+      {'status': 'pending', 'title': 'Pending', 'icon': Icons.schedule},
+      {'status': 'preparing', 'title': 'Cooking', 'icon': Icons.restaurant},
+      {'status': 'ready', 'title': 'Pick Up', 'icon': Icons.check_circle},
+    ];
+
+    int currentIndex = steps.indexWhere(
+      (step) => step['status'] == currentStatus,
+    );
+    if (currentIndex == -1) currentIndex = 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          // Stack to overlay lines behind circles
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Background connecting lines
+              Positioned(
+                top: 15, // Center of 32px circle
+                left: 40,
+                right: 40,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: currentIndex >= 1
+                            ? Colors.green
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    const SizedBox(width: 32), // Space for middle circle
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: currentIndex >= 2
+                            ? Colors.green
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Circles on top of lines
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: steps.asMap().entries.map((entry) {
+                  final stepIndex = entry.key;
+                  final step = entry.value;
+                  final isCompleted = stepIndex <= currentIndex;
+                  final isCurrent = stepIndex == currentIndex;
+
+                  return Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isCompleted
+                          ? (isCurrent ? Colors.orange : Colors.green)
+                          : Colors.grey.shade300,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      step['icon'] as IconData,
+                      color: isCompleted ? Colors.white : Colors.grey.shade600,
+                      size: 16,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Text labels perfectly aligned
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: steps.asMap().entries.map((entry) {
+              final stepIndex = entry.key;
+              final step = entry.value;
+              final isCompleted = stepIndex <= currentIndex;
+              final isCurrent = stepIndex == currentIndex;
+
+              return SizedBox(
+                width: 60, // Fixed width for each text
+                child: Text(
+                  step['title'] as String,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    color: isCompleted
+                        ? (isCurrent ? Colors.orange : Colors.green)
+                        : Colors.grey.shade600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
