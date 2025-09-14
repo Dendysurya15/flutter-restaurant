@@ -1,5 +1,7 @@
 // lib/app/services/customer_order_counter_service.dart
 import 'package:get/get.dart';
+import 'package:restaurant/app/data/models/order_model.dart';
+import 'package:restaurant/app/services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/services/payment_timer_service.dart';
 
@@ -61,41 +63,74 @@ class CustomerOrderCounterService extends GetxService {
         .subscribe();
   }
 
-  void _showUpdateNotification(PostgresChangePayload payload) {
+  void _showUpdateNotification(PostgresChangePayload payload) async {
     String message = '';
 
+    final notificationService = Get.find<NotificationService>();
+
     switch (payload.eventType) {
-      case PostgresChangeEvent.insert: // lowercase 'insert'
+      case PostgresChangeEvent.insert:
         message = 'New order confirmed!';
         break;
-      case PostgresChangeEvent.update: // lowercase 'update'
+      case PostgresChangeEvent.update:
         final newRecord = payload.newRecord;
         final status = newRecord?['status'];
 
-        switch (status) {
-          case 'preparing':
-            message = 'Your order is being prepared!';
-            break;
-          case 'ready':
-            message = 'Your order is ready for pickup!';
-            break;
-          case 'completed':
-            message = 'Order completed. Thank you!';
-            break;
-          case 'rejected':
-            message = 'Order was rejected. Check details.';
-            break;
-          default:
-            message = 'Order status updated';
+        // Create OrderModel from the updated data to show notification
+        if (newRecord != null) {
+          try {
+            final orderModel = OrderModel.fromJson(newRecord);
+
+            // Show customer notification for status updates
+            await notificationService.showCustomerOrderUpdate(orderModel);
+
+            switch (status) {
+              case 'preparing':
+                message = 'Your order is being prepared!';
+                break;
+              case 'ready':
+                message = 'Your order is ready for pickup!';
+                break;
+              case 'completed':
+                message = 'Order completed. Thank you!';
+                break;
+              case 'rejected':
+                message = 'Order was rejected. Check details.';
+                break;
+              default:
+                message = 'Order status updated';
+            }
+          } catch (e) {
+            print('Error creating OrderModel for notification: $e');
+            // Fallback to simple message
+            switch (status) {
+              case 'preparing':
+                message = 'Your order is being prepared!';
+                break;
+              case 'ready':
+                message = 'Your order is ready for pickup!';
+                break;
+              case 'completed':
+                message = 'Order completed. Thank you!';
+                break;
+              case 'rejected':
+                message = 'Order was rejected. Check details.';
+                break;
+              default:
+                message = 'Order status updated';
+            }
+          }
         }
         break;
-      case PostgresChangeEvent.delete: // lowercase 'delete'
+      case PostgresChangeEvent.delete:
         message = 'Order removed';
         break;
       default:
         print('Unknown event type: ${payload.eventType}');
         break;
     }
+
+    print('Notification message: $message');
   }
 
   /// Load current count of active orders (not completed)
