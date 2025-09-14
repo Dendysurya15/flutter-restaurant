@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
+import 'package:restaurant/app/services/customer_order_counter_service.dart';
 import 'package:restaurant/app/services/payment_timer_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/data/models/store_model.dart';
@@ -19,9 +20,11 @@ class DashboardCustomerController extends GetxController {
   final filteredStores = <StoreModel>[].obs;
   final isLoading = false.obs;
 
-  // Remove the old getter and replace with this:
-  int get pendingOrdersCount => PaymentTimerService.to.totalPendingPayments;
-  Timer? _pendingOrdersTimer;
+  // Add the new combined counter service
+  final _orderCounterService = Get.put(CustomerOrderCounterService());
+
+  // Update this getter to use combined count
+  int get pendingOrdersCount => _orderCounterService.totalNotificationCount;
 
   @override
   void onInit() {
@@ -46,6 +49,8 @@ class DashboardCustomerController extends GetxController {
 
   // Navigate to orders history
   void goToOrdersHistory() {
+    // Mark active orders as read when viewing history
+    _orderCounterService.markNotificationsAsRead();
     Get.toNamed(Routes.HISTORY_ORDERS);
   }
 

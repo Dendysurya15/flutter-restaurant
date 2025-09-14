@@ -333,28 +333,54 @@ class NotificationService extends GetxService {
   Future<void> showCustomerOrderUpdate(OrderModel order) async {
     if (_getUserRole() != 'customer') return;
 
+    // Get total items count from database
+    int totalItems = 0;
+    try {
+      final itemsResponse = await _supabase
+          .from('order_items')
+          .select('quantity')
+          .eq('order_id', order.id);
+
+      for (final item in itemsResponse) {
+        totalItems += (item['quantity'] as int? ?? 0);
+      }
+    } catch (e) {
+      print('❌ Error getting items count: $e');
+      totalItems = 1; // Default to 1 if we can't get the count
+    }
+
     String title;
     String body;
+    final itemText = totalItems == 1 ? 'item' : 'items';
 
     switch (order.status) {
       case 'preparing':
         title = '👨‍🍳 Order Being Prepared';
         body =
-            'Good news! Your order #${order.orderNumber} is now being prepared';
+            'Good news! Your order is now being prepared\n'
+            'Order #${order.orderNumber}\n'
+            '$totalItems $itemText • Rp ${_formatPrice(order.totalAmount)}';
         break;
       case 'ready':
         title = '🎉 Order Ready for Pickup!';
         body =
-            'Your order #${order.orderNumber} is ready! Please come to pick it up';
+            'Your order is ready! Please come to pick it up\n'
+            'Order #${order.orderNumber}\n'
+            '$totalItems $itemText • Rp ${_formatPrice(order.totalAmount)}';
         break;
       case 'completed':
         title = '✅ Order Completed';
-        body = 'Thank you! Your order #${order.orderNumber} has been completed';
+        body =
+            'Thank you! Your order has been completed\n'
+            'Order #${order.orderNumber}\n'
+            '$totalItems $itemText • Rp ${_formatPrice(order.totalAmount)}';
         break;
       case 'rejected':
         title = '❌ Order Rejected';
         body =
-            'Sorry, your order #${order.orderNumber} has been rejected. You will be refunded shortly.';
+            'Sorry, your order has been rejected. You will be refunded shortly.\n'
+            'Order #${order.orderNumber}\n'
+            '$totalItems $itemText • Rp ${_formatPrice(order.totalAmount)}';
         break;
       default:
         return;
@@ -388,6 +414,8 @@ class NotificationService extends GetxService {
       notificationDetails,
       payload: 'order:${order.id}',
     );
+
+    print('✅ Customer notification sent: $title');
   }
 
   // ==============================================================

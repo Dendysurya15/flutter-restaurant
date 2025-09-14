@@ -202,7 +202,7 @@ class DashboardOwnerController extends GetxController {
             previousStatus,
           );
         } else if (NotificationService.to.isCustomer) {
-          // Show customer order update
+          // Show customer order update - REMOVE THE EXTRA PARAMETER
           await NotificationService.to.showCustomerOrderUpdate(updatedOrder);
         }
       }

@@ -1,5 +1,6 @@
 import 'package:restaurant/app/modules/cart_item/controllers/cart_item_controller.dart';
 import 'package:restaurant/app/services/cart_service.dart';
+import 'package:restaurant/app/services/customer_order_counter_service.dart';
 import 'package:restaurant/app/services/notification_service.dart';
 import 'package:restaurant/app/services/order_service.dart';
 import 'package:restaurant/app/services/payment_service.dart';
@@ -55,6 +56,7 @@ void main() async {
   Get.put(PaymentService(), permanent: true);
   Get.put(PaymentTimerService(), permanent: true);
   Get.put(CartItemController(), permanent: true);
+  Get.put(CustomerOrderCounterService(), permanent: true);
 
   runApp(MyApp());
 }
