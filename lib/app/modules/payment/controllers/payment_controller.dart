@@ -106,9 +106,16 @@ class PaymentController extends GetxController {
     processPayment();
   }
 
-  void _handlePaymentExpired() {
+  void _handlePaymentExpired() async {
     print('Payment expired - closing WebView');
     closePaymentWebView();
+
+    // Update database when payment expires
+    try {
+      await paymentService.expirePayment(payment.id, payment.orderId);
+    } catch (e) {
+      print('Error updating expired payment in database: $e');
+    }
 
     Get.dialog(
       AlertDialog(

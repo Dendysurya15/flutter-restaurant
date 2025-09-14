@@ -32,7 +32,6 @@ class PaymentMethodOption {
 class PaymentService extends GetxService {
   final OrderService _orderService = Get.find<OrderService>();
 
-  // Your existing payment methods list...
   static final List<PaymentMethodOption> _allPaymentMethods = [
     // E-Wallets
     PaymentMethodOption(
@@ -137,6 +136,34 @@ class PaymentService extends GetxService {
 
   PaymentMethodOption? getPaymentMethodById(String id) {
     return _allPaymentMethods.firstWhereOrNull((method) => method.id == id);
+  }
+
+  Future<void> expirePayment(String paymentId, String orderId) async {
+    try {
+      // Update payment status to failed (not expired)
+      await Supabase.instance.client
+          .from('payments')
+          .update({
+            'status': 'failed', // Changed from 'expired' to 'failed'
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', paymentId);
+
+      // Update order status to failed and payment_status to failed
+      await Supabase.instance.client
+          .from('orders')
+          .update({
+            'status': 'cancelled',
+            'payment_status': 'failed', // Changed from 'expired' to 'failed'
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', orderId);
+
+      print('✅ Payment and order updated to failed status');
+    } catch (e) {
+      print('❌ Error expiring payment: $e');
+      throw e;
+    }
   }
 
   Future<Map<String, dynamic>> processPayment({

@@ -98,9 +98,12 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
   }
 
   // History orders: completed + rejected
+  // History orders: completed + rejected + failed
   List<OrderModel> _getHistoryOrders() {
     return controller.allOrders.where((order) {
-      return order.status == 'completed' || order.status == 'rejected';
+      return order.status == 'completed' ||
+          order.status == 'rejected' ||
+          order.status == 'failed'; // ADD THIS LINE
     }).toList();
   }
 
@@ -175,7 +178,8 @@ class HistoryOrdersView extends GetView<HistoryOrdersController> {
         statusColor = Colors.orange;
         statusText = 'Need Payment';
         statusIcon = Icons.payment;
-      } else if (order.paymentStatus == 'pending' && isExpired) {
+      } else if (order.paymentStatus == 'expired' || order.status == 'failed') {
+        // UPDATED THIS LINE
         statusColor = Colors.red;
         statusText = 'Expired';
         statusIcon = Icons.timer_off;

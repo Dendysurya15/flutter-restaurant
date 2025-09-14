@@ -7,6 +7,7 @@ import 'package:restaurant/app/helper/toast_helper.dart';
 import 'package:restaurant/app/routes/app_pages.dart';
 import 'package:restaurant/app/services/order_service.dart';
 import 'package:restaurant/app/services/payment_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:toastification/toastification.dart';
 
 class PaymentTimerService extends GetxService {
@@ -25,7 +26,6 @@ class PaymentTimerService extends GetxService {
   void onInit() {
     super.onInit();
     // Load any existing pending payments from local storage or API
-    loadPendingPayments();
   }
 
   @override
@@ -64,7 +64,6 @@ class PaymentTimerService extends GetxService {
       } else {
         timer.cancel();
         timerData.isExpired.value = true;
-        _handlePaymentExpired(timerData);
       }
     });
 
@@ -91,58 +90,8 @@ class PaymentTimerService extends GetxService {
 
   int get totalPendingPayments => _activeTimers.length;
 
-  void _handlePaymentExpired(PaymentTimerData timerData) async {
-    // Update payment status to expired
-    try {
-      await orderService.updatePaymentStatus(
-        paymentId: timerData.paymentId,
-        status: 'expired',
-      );
-
-      // Update order status to cancelled
-      await paymentService.updateOrderStatus(timerData.orderId, 'cancelled');
-
-      ToastHelper.showToast(
-        context: Get.context!,
-        title: 'Payment Expired',
-        description:
-            'Order ${timerData.order.orderNumber} payment has expired.',
-        type: ToastificationType.warning,
-      );
-    } catch (e) {
-      print('Error updating expired payment: $e');
-    }
-
-    // Remove from active timers
-    _activeTimers.remove(timerData.paymentId);
-    _updateActivePaymentsList();
-  }
-
   void _updateActivePaymentsList() {
     activePayments.value = _activeTimers.values.toList();
-  }
-
-  Future<void> loadPendingPayments() async {
-    try {
-      // Load pending payments from API
-      final pendingPayments = await paymentService.getPendingPayments();
-
-      for (var paymentData in pendingPayments) {
-        final order = paymentData['order'] as OrderModel;
-        final payment = paymentData['payment'] as PaymentModel;
-        final remainingTime = paymentData['remaining_seconds'] as int;
-
-        if (remainingTime > 0) {
-          startPaymentTimer(
-            order: order,
-            payment: payment,
-            durationInSeconds: remainingTime,
-          );
-        }
-      }
-    } catch (e) {
-      print('Error loading pending payments: $e');
-    }
   }
 
   String formatTime(int seconds) {
