@@ -17,6 +17,8 @@ class DashboardOwnerView extends GetView<DashboardOwnerController> {
           centerTitle: true,
           automaticallyImplyLeading: false,
           actions: [
+            // Test notification button (for development/testing)
+
             // Refresh button
             Obx(
               () => IconButton(

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:restaurant/app/data/models/order_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:restaurant/app/helper/toast_helper.dart';
+import 'package:restaurant/app/services/notification_service.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter/material.dart';
 
@@ -22,8 +23,9 @@ class DashboardOwnerController extends GetxController {
   var isLoading = false.obs;
   var isRealtimeConnected = false.obs;
 
-  // Store ID for the current owner
+  // Store ID and name for the current owner
   String? _currentStoreId;
+  String? _currentStoreName;
 
   // Realtime subscription
   RealtimeChannel? _ordersSubscription;
@@ -32,10 +34,39 @@ class DashboardOwnerController extends GetxController {
   void onInit() {
     super.onInit();
 
-    _getCurrentStoreId().then((_) {
+    _getCurrentStoreInfo().then((_) {
       fetchOrders(); // Initial load
       _setupRealtimeSubscription(); // Start real-time listening
     });
+  }
+
+  /// Get current store info (ID and name) for the logged-in owner
+  Future<void> _getCurrentStoreInfo() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        print('❌ No user logged in');
+        return;
+      }
+
+      final storeResponse = await _supabase
+          .from('stores')
+          .select('id, name')
+          .eq('owner_id', user.id)
+          .limit(1)
+          .single();
+
+      _currentStoreId = storeResponse['id'];
+      _currentStoreName = storeResponse['name'];
+
+      // Set store name in notification service
+      NotificationService.to.setStoreName(_currentStoreName!);
+
+      print('🏪 Store ID: $_currentStoreId, Name: $_currentStoreName');
+    } catch (e) {
+      print('❌ Error getting store info: $e');
+      _showErrorToast('Failed to get store information');
+    }
   }
 
   /// Setup real-time subscription for orders table
@@ -89,7 +120,7 @@ class DashboardOwnerController extends GetxController {
         _handleNewOrder(payload.newRecord);
         break;
       case PostgresChangeEvent.update:
-        _handleOrderUpdate(payload.newRecord);
+        _handleOrderUpdate(payload.newRecord, payload.oldRecord);
         break;
       case PostgresChangeEvent.delete:
         _handleOrderDelete(payload.oldRecord);
@@ -101,7 +132,8 @@ class DashboardOwnerController extends GetxController {
   }
 
   /// Handle new order insertion (INSTANT!)
-  void _handleNewOrder(Map<String, dynamic> orderData) {
+  /// Handle new order insertion (INSTANT!)
+  void _handleNewOrder(Map<String, dynamic> orderData) async {
     print('🎉 NEW ORDER received via real-time!');
 
     try {
@@ -112,11 +144,30 @@ class DashboardOwnerController extends GetxController {
         // Add to new orders list for UI highlighting
         newOrderIds.add(newOrder.id);
 
-        // Show toast notification
-        _showNewOrderToast(newOrder);
+        // Get order items count for notification
+        final itemsCount = await _getOrderItemsCount(newOrder.id);
 
-        // Remove highlighting after 10 seconds
-        Future.delayed(const Duration(seconds: 10), () {
+        // DEBUG: Check user role
+
+        print('🔍 DEBUG: Is owner: ${NotificationService.to.isOwner}');
+        print('🔍 DEBUG: Items count: $itemsCount');
+
+        // Show push notification (works in background/foreground/closed app)
+        try {
+          await NotificationService.to.showNewOrderNotification(
+            newOrder,
+            itemsCount,
+          );
+          print('✅ Notification service called successfully');
+        } catch (notificationError) {
+          print('❌ Notification error: $notificationError');
+        }
+
+        // Show toast notification (only if app is in foreground)
+        // _showNewOrderToast(newOrder);
+
+        // Remove highlighting after 30 seconds
+        Future.delayed(const Duration(seconds: 30), () {
           newOrderIds.remove(newOrder.id);
         });
       }
@@ -129,14 +180,32 @@ class DashboardOwnerController extends GetxController {
   }
 
   /// Handle order updates (status changes, etc.)
-  void _handleOrderUpdate(Map<String, dynamic> orderData) {
+  void _handleOrderUpdate(
+    Map<String, dynamic> newRecord,
+    Map<String, dynamic>? oldRecord,
+  ) async {
     print('📝 ORDER UPDATED via real-time!');
 
     try {
-      final updatedOrder = OrderModel.fromJson(orderData);
+      final updatedOrder = OrderModel.fromJson(newRecord);
+      final previousStatus = oldRecord?['status'] as String?;
 
       // Remove from new orders if it was there
       newOrderIds.remove(updatedOrder.id);
+
+      // Show status update notification if status changed
+      if (previousStatus != null && previousStatus != updatedOrder.status) {
+        if (NotificationService.to.isOwner) {
+          // Show owner status update
+          await NotificationService.to.showOrderStatusNotification(
+            updatedOrder,
+            previousStatus,
+          );
+        } else if (NotificationService.to.isCustomer) {
+          // Show customer order update
+          await NotificationService.to.showCustomerOrderUpdate(updatedOrder);
+        }
+      }
 
       // Refresh orders to show updated status
       fetchOrders();
@@ -152,31 +221,31 @@ class DashboardOwnerController extends GetxController {
     if (oldRecord != null) {
       final deletedOrderId = oldRecord['id'] as String;
       newOrderIds.remove(deletedOrderId);
+
+      // Cancel notification for deleted order
+      NotificationService.to.cancelOrderNotification(deletedOrderId);
+
       fetchOrders();
     }
   }
 
-  /// Get current store ID for the logged-in owner
-  Future<void> _getCurrentStoreId() async {
+  /// Get order items count
+  Future<int> _getOrderItemsCount(String orderId) async {
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) {
-        print('❌ No user logged in');
-        return;
+      final itemsResponse = await _supabase
+          .from('order_items')
+          .select('quantity')
+          .eq('order_id', orderId);
+
+      int totalItems = 0;
+      for (final item in itemsResponse) {
+        totalItems += (item['quantity'] as int? ?? 0);
       }
 
-      final storeResponse = await _supabase
-          .from('stores')
-          .select('id')
-          .eq('owner_id', user.id)
-          .limit(1)
-          .single();
-
-      _currentStoreId = storeResponse['id'];
-      print('🏪 Store ID found: $_currentStoreId');
+      return totalItems;
     } catch (e) {
-      print('❌ Error getting store ID: $e');
-      _showErrorToast('Failed to get store information');
+      print('❌ Error getting order items count: $e');
+      return 0;
     }
   }
 

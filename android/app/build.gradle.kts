@@ -6,10 +6,12 @@ plugins {
 
 android {
     namespace = "com.nocompany.restaurant"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34  // Use latest for Android 11+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Enable desugaring
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -20,8 +22,8 @@ android {
 
     defaultConfig {
         applicationId = "com.nocompany.restaurant"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 30  // Start with Android 11
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -36,4 +38,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Add desugaring dependency
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

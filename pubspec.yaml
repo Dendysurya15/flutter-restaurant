@@ -46,6 +46,8 @@ dependencies:
   http:
   url_launcher:
   webview_flutter: ^4.13.0
+  flutter_local_notifications:
+  timezone: ^0.9.0
 
 dev_dependencies:
   flutter_test:
